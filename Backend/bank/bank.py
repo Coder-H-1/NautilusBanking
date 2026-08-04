@@ -4,7 +4,7 @@ Handles bank user accounts, validation, and transfer dispatch.
 """
 
 from typing import Optional, Dict, Any, List
-from supabase.client import get_supabase_client
+from db.client import get_supabase_client
 
 BANKS: List[Dict[str, str]] = [
     {

@@ -4,7 +4,7 @@ Orchestrates inter-bank transactions via atomic double-ledger operations in Supa
 """
 
 from typing import Dict, Any
-from supabase.client import get_supabase_client
+from db.client import get_supabase_client
 from bank.bank import Banks
 
 

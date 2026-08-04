@@ -122,7 +122,7 @@ async def bank_user_faucet_request(
         )
 
     try:
-        from supabase.client import get_supabase_client
+        from db.client import get_supabase_client
         supabase = get_supabase_client()
         table_name = f"{req.bank_id.lower()}_database"
 

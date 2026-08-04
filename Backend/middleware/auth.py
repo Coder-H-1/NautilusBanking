@@ -5,8 +5,7 @@ Validates JWT tokens from requests using Supabase Auth.
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase.client import Client
-from supabase import client as sb_client
+from supabase import Client
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -27,7 +26,7 @@ async def verify_common(token: str = Depends(get_token)) -> dict:
     Common route protector:
     Validates any active user authenticated via Supabase Auth.
     """
-    from supabase.client import get_supabase_client
+    from db.client import get_supabase_client
     supabase: Client = get_supabase_client()
     try:
         user_response = supabase.auth.get_user(token)

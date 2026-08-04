@@ -9,7 +9,7 @@ from models.schemas import (
     AuthDeviceRequest,
     AuthResponse,
 )
-from supabase.client import get_supabase_client
+from db.client import get_supabase_client
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
