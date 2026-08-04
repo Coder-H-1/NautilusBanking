@@ -4,7 +4,7 @@ QR Code Router — Generates and rotates encrypted payment/faucet QR codes
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.schemas import QRResponse, QRGenerateRequest
-from qrcode.QrCodeMaker import QRCodeMaker
+from qr_service.QrCodeMaker import QRCodeMaker
 from middleware.auth import verify_common
 
 router = APIRouter(prefix="/qr", tags=["QR Code"])
