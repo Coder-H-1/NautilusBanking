@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+supabase
+pydantic
+cryptography
+qrcode[pil]
+python-dotenv
+httpx
+slowapi

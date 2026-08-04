@@ -1,0 +1,27 @@
+Making an interactive banking system for myself to play with.
+
+All Connected Payments Interface (ACPI):
+    is a payment managing body for the initiated payment by the user.
+    It initiated the tranfer or moving of the money from sender to receiver after the confirmation of the payment.
+    It keeps a record of the money sent and received by the user.
+    manages the banks to perform actions.
+
+
+Workers:
+    Server ( ACPI )
+    Banks ( Accounter ) => These will contain the accounts and will be used to transfer money.
+    Client ( PSP (Payment Service Provider) ) => initiates a payment.
+
+functions: 
+    Concept of Money tranfers, Sending and Recieving.
+    Accounts: Saving 
+
+How will it work on frontend.
+    To start with the System, user will be prompted to download the Client Application.
+    After the installs the application, he will be prompted for privacy policy agreement and other information.
+    Then he will prompted to make a login or sign up request (mandatory). 
+    After the Whole login process, user will be able to send or recieve Money.
+
+    User will be after to scan the qr code displayed on the bank to request money upto some limit.
+    The bank after verification will send the money from the bank's account to user's account.
+
