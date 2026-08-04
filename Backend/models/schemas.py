@@ -18,7 +18,7 @@ class AuthSignupRequest(BaseModel):
     email: str = Field(..., description="User email address")
     password: str = Field(..., min_length=8, description="User password")
     account_holder_name: str = Field(..., min_length=1, description="Full name of the account holder")
-    bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
 
 
 class AuthDeviceRequest(BaseModel):
@@ -33,6 +33,10 @@ class AuthResponse(BaseModel):
     message: str
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    bank_user_id: Optional[int] = None
+    bank_id: Optional[str] = None
+    account_holder_name: Optional[str] = None
+    balance: Optional[int] = None
 
 
 # ============================================
@@ -52,7 +56,7 @@ class BankListResponse(BaseModel):
 
 class BankUserRequest(BaseModel):
     """Request to get user info from a bank."""
-    bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Bank ID")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
     bank_user_id: int = Field(..., gt=0, description="User ID in the bank")
 
 
@@ -67,7 +71,7 @@ class BankUserResponse(BaseModel):
 
 class BankMoneyRequest(BaseModel):
     """Request from user to bank for money (bank-to-user transfer)."""
-    bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Bank ID")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
     bank_user_id: int = Field(..., gt=0, description="User ID in the bank")
     amount: int = Field(..., gt=0, description="Amount to request")
 
@@ -78,17 +82,17 @@ class BankMoneyRequest(BaseModel):
 
 class TransferRequest(BaseModel):
     """Request to initiate a money transfer (from PSP via /bank/req/sender)."""
-    sender_bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Sender's bank ID")
+    sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Sender's bank ID")
     sender_bank_user_id: int = Field(..., gt=0, description="Sender's user ID in bank")
     sender_account_holder_name: str = Field(..., min_length=1, description="Sender's name")
-    receiver_bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Receiver's bank ID")
+    receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver's bank ID")
     receiver_bank_user_id: int = Field(..., gt=0, description="Receiver's user ID in bank")
     amount: int = Field(..., gt=0, description="Amount to transfer")
 
 
 class ReceiverInfoRequest(BaseModel):
     """Request to get receiver info (from ACPI via /bank/req/receiver)."""
-    bank_id: str = Field(..., pattern="^(cpb|eb|sb)$", description="Receiver's bank ID")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver's bank ID")
     bank_user_id: int = Field(..., gt=0, description="Receiver's user ID")
 
 
@@ -106,9 +110,9 @@ class TransferResponse(BaseModel):
 
 class ACPITransferRequest(BaseModel):
     """Request to ACPI to execute a transfer."""
-    sender_bank_id: str = Field(..., pattern="^(cpb|eb|sb)$")
+    sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     sender_bank_user_id: int = Field(..., gt=0)
-    receiver_bank_id: str = Field(..., pattern="^(cpb|eb|sb)$")
+    receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     receiver_bank_user_id: int = Field(..., gt=0)
     amount: int = Field(..., gt=0)
 
@@ -128,7 +132,7 @@ class ACPITransferResponse(BaseModel):
 
 class QRGenerateRequest(BaseModel):
     """Request to generate a QR code."""
-    bank_id: str = Field(..., pattern="^(cpb|eb|sb)$")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     bank_user_id: int = Field(..., gt=0)
 
 

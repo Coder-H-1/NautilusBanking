@@ -1,4 +1,4 @@
-export type BankName = "BOA" | "HDFC" | "JPMC" | "SWISS" | "CITI";
+export type BankName = "CPB" | "EB" | "SB";
 
 export interface UserAccount {
   id: string;

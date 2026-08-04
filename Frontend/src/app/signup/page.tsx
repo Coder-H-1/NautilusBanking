@@ -12,18 +12,16 @@ import { Building2, ArrowRight, ShieldCheck } from "lucide-react";
 import { sanitizeInput } from "@/features/crypto/sanitizer";
 
 const BANK_OPTIONS: { id: BankName; name: string; region: string }[] = [
-  { id: "BOA", name: "Bank of America", region: "United States" },
-  { id: "HDFC", name: "HDFC Bank", region: "India" },
-  { id: "JPMC", name: "JPMorgan Chase", region: "Global" },
-  { id: "SWISS", name: "Swiss Private Bank", region: "Switzerland" },
-  { id: "CITI", name: "Citigroup Institutional", region: "International" },
+  { id: "CPB", name: "Common People's Bank", region: "Retail Network" },
+  { id: "EB", name: "Elses Bank", region: "Commercial & Private" },
+  { id: "SB", name: "SomeBank", region: "Reserve & Settlement" },
 ];
 
 export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("SecurePass123!");
-  const [selectedBank, setSelectedBank] = useState<BankName>("BOA");
+  const [selectedBank, setSelectedBank] = useState<BankName>("CPB");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

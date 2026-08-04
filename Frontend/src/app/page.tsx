@@ -25,7 +25,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="flex flex-col items-center text-center space-y-6 max-w-3xl mx-auto pt-8">
         <Badge variant="outline" className="px-3 py-1 text-xs">
-          AUTOMATED CLEARING & PAYMENT INTERFACE (ACPI)
+          ALL CONNECTED PAYMENTS INTERFACE (ACPI)
         </Badge>
         
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-zinc-950 leading-[1.15]">
@@ -33,8 +33,8 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-base sm:text-lg text-zinc-600 font-normal leading-relaxed max-w-2xl">
-          NAUTILUS facilitates instant cryptographic inter-bank fund settlement between BOA,
-          HDFC, JPMC, SWISS, and CITI with RSA-OAEP payload encryption, HMAC signatures, and timed QR codes.
+          NAUTILUS facilitates instant inter-bank fund settlement between Common People&apos;s Bank (CPB),
+          Elses Bank (EB), and SomeBank (SB) with real-time ACID clearance and timed QR codes.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -67,28 +67,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 5 Participating Banks Bar */}
+      {/* 3 Participating Banks Bar */}
       <section className="border-y border-zinc-200 py-6 bg-zinc-50/50 rounded-xl">
         <div className="text-center mb-4">
           <span className="text-[11px] font-mono font-semibold uppercase text-zinc-400 tracking-widest">
             Connected Liquidity Hubs
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center max-w-3xl mx-auto">
           {[
-            { name: "Bank of America", id: "BOA", tag: "US Retail" },
-            { name: "HDFC Bank", id: "HDFC", tag: "IN Commercial" },
-            { name: "JPMorgan Chase", id: "JPMC", tag: "Global Core" },
-            { name: "Swiss Private", id: "SWISS", tag: "Zurich Reserve" },
-            { name: "Citigroup", id: "CITI", tag: "Institutional" },
+            { name: "Common People's Bank", id: "CPB", tag: "Retail Network" },
+            { name: "Elses Bank", id: "EB", tag: "Commercial & Private" },
+            { name: "SomeBank", id: "SB", tag: "Reserve & Settlement" },
           ].map((bank) => (
             <div
               key={bank.id}
-              className="p-3 bg-white rounded-lg border border-zinc-200 shadow-subtle flex flex-col items-center justify-center"
+              className="p-4 bg-white rounded-lg border border-zinc-200 shadow-subtle flex flex-col items-center justify-center"
             >
-              <span className="text-base font-bold font-mono text-zinc-900">{bank.id}</span>
-              <span className="text-[11px] text-zinc-500 font-medium">{bank.name}</span>
-              <span className="text-[9px] text-zinc-400 font-mono mt-0.5">{bank.tag}</span>
+              <span className="text-lg font-bold font-mono text-zinc-900">{bank.id}</span>
+              <span className="text-xs text-zinc-700 font-medium">{bank.name}</span>
+              <span className="text-[10px] text-zinc-400 font-mono mt-0.5">{bank.tag}</span>
             </div>
           ))}
         </div>
@@ -103,7 +101,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-base font-semibold text-zinc-900">ACPI Settlement Routing</h3>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              Automated central clearing engine verifies sender liquidity, updates bank ledger records atomically, and commits funds to recipient accounts in milliseconds.
+              Central clearing engine verifies sender liquidity, updates bank ledger records atomically, and commits funds to recipient accounts in milliseconds.
             </p>
           </CardContent>
         </Card>
@@ -113,9 +111,9 @@ export default function LandingPage() {
             <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-900 border border-zinc-200">
               <Lock className="w-5 h-5" />
             </div>
-            <h3 className="text-base font-semibold text-zinc-900">End-to-End Cryptography</h3>
+            <h3 className="text-base font-semibold text-zinc-900">Zero-Trust Security</h3>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              Every sensitive transaction payload is encrypted using 2048-bit RSA-OAEP with SHA-256 and signed via HMAC-SHA256 for mathematical tampering resistance.
+              Every sensitive transaction payload is securely verified and signed for mathematical integrity and anti-tampering protection.
             </p>
           </CardContent>
         </Card>
@@ -127,7 +125,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-base font-semibold text-zinc-900">Timed Encrypted QR</h3>
             <p className="text-xs text-zinc-600 leading-relaxed">
-              2-minute self-expiring encrypted payment tokens prevent replay attacks, ensuring touchless transactions are strictly single-use and time-bounded.
+              2-minute self-expiring payment tokens prevent replay attacks, ensuring touchless transactions are strictly single-use and time-bounded.
             </p>
           </CardContent>
         </Card>

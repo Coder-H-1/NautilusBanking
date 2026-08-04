@@ -13,16 +13,12 @@ export function Footer() {
 
         <div className="flex items-center gap-6 text-xs text-zinc-500 font-mono">
           <div className="flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-zinc-700" />
-            <span>RSA-2048 / OAEP</span>
+            <Server className="w-3.5 h-3.5 text-zinc-700" />
+            <span>All Connected Payments Interface (ACPI)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Shield className="w-3.5 h-3.5 text-zinc-700" />
-            <span>HMAC-SHA256</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Server className="w-3.5 h-3.5 text-zinc-700" />
-            <span>ACPI Switch Protocol</span>
+            <span>CPB • EB • SB Connected Hubs</span>
           </div>
         </div>
       </div>

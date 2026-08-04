@@ -30,7 +30,7 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Inspector state
-  const [inspectBank, setInspectBank] = useState<BankName>("BOA");
+  const [inspectBank, setInspectBank] = useState<BankName>("CPB");
   const [inspectUserId, setInspectUserId] = useState("1");
   const [inspectResult, setInspectResult] = useState<{
     account_holder_name?: string;
@@ -136,8 +136,8 @@ export default function DashboardPage() {
                 <span className="font-semibold text-white">#{user?.id}</span>
               </div>
               <div>
-                <span className="text-zinc-400 block text-[10px]">SECURITY LEVEL</span>
-                <span className="font-semibold text-emerald-400">RSA-OAEP 2048</span>
+                <span className="text-zinc-400 block text-[10px]">ACCOUNT STATUS</span>
+                <span className="font-semibold text-emerald-400">ACPI ACTIVE</span>
               </div>
             </div>
           </CardContent>
@@ -155,7 +155,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h4 className="text-xs font-semibold text-zinc-900">ACPI Inter-Bank Transfer</h4>
-                <p className="text-[11px] text-zinc-500">Send money across any of 5 banks</p>
+                <p className="text-[11px] text-zinc-500">Send money across CPB, EB, and SB</p>
               </div>
             </div>
             <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
@@ -217,11 +217,9 @@ export default function DashboardPage() {
                     onChange={(e) => setInspectBank(e.target.value as BankName)}
                     className="flex h-9 w-full rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-mono text-zinc-900 shadow-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
                   >
-                    <option value="BOA">BOA (Bank of America)</option>
-                    <option value="HDFC">HDFC Bank</option>
-                    <option value="JPMC">JPMorgan Chase</option>
-                    <option value="SWISS">Swiss Private</option>
-                    <option value="CITI">Citigroup</option>
+                    <option value="CPB">CPB (Common People&apos;s Bank)</option>
+                    <option value="EB">EB (Elses Bank)</option>
+                    <option value="SB">SB (SomeBank)</option>
                   </select>
                 </div>
 

@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: email,
         role: "user",
         balance: 1000,
-        bank_name: "BOA",
+        bank_name: "CPB",
       };
 
       setUser(newUser);
@@ -114,14 +114,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await apiRequest<{
-        access_token: string;
-        message: string;
-        success: boolean;
+        access_token?: string;
+        message?: string;
+        success?: boolean;
+        bank_user_id?: number;
+        bank_id?: string;
+        account_holder_name?: string;
+        balance?: number;
       }>("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
           account_holder_name: name,
-          bank_id: bankId,
+          bank_id: bankId.toLowerCase(),
           email,
           password,
         }),
@@ -132,17 +136,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: res.error || "Signup failed" };
       }
 
-      const accessToken = res.data.access_token || "sample_session_token";
+      const assignedBankUserId = String(res.data.bank_user_id || 1);
+      const accessToken = res.data.access_token || `session_${bankId.toLowerCase()}_${assignedBankUserId}`;
+      
       setToken(accessToken);
       localStorage.setItem("nautilus_token", accessToken);
 
       const newUser: UserAccount = {
-        id: "1",
+        id: assignedBankUserId,
         username: email.split("@")[0],
-        name: name,
+        name: res.data.account_holder_name || name,
         email: email,
         role: "user",
-        balance: 1000,
+        balance: res.data.balance ?? 1000,
         bank_name: bankId,
       };
 

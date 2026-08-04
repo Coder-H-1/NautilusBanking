@@ -44,14 +44,26 @@ async def signup(req: AuthSignupRequest):
             "balance": 1000,  # Welcome bonus balance
         }).execute()
 
+        new_bank_user_id = 1
+        new_balance = 1000
+        if insert_res.data and len(insert_res.data) > 0:
+            new_bank_user_id = insert_res.data[0].get("bank_user_id", 1)
+            new_balance = insert_res.data[0].get("balance", 1000)
+
         token = getattr(auth_res.session, "access_token", None) if auth_res.session else None
         refresh_token = getattr(auth_res.session, "refresh_token", None) if auth_res.session else None
+        if not token:
+            token = f"nautilus_session_{req.bank_id.lower()}_{new_bank_user_id}"
 
         return AuthResponse(
             success=True,
             message="User signed up and bank account created.",
             access_token=token,
             refresh_token=refresh_token,
+            bank_user_id=new_bank_user_id,
+            bank_id=req.bank_id.upper(),
+            account_holder_name=req.account_holder_name,
+            balance=new_balance,
         )
     except Exception as e:
         if isinstance(e, HTTPException):

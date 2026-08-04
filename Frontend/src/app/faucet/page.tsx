@@ -13,12 +13,12 @@ import { formatCurrency } from "@/lib/utils";
 import { requestFaucetFunds } from "@/features/bank/api";
 import { sanitizeNumber } from "@/features/crypto/sanitizer";
 
-const BANK_OPTIONS: BankName[] = ["BOA", "HDFC", "JPMC", "SWISS", "CITI"];
+const BANK_OPTIONS: BankName[] = ["CPB", "EB", "SB"];
 
 export default function FaucetPage() {
   const { user, refreshBalance } = useAuth();
 
-  const [targetBank, setTargetBank] = useState<BankName>(user?.bank_name || "BOA");
+  const [targetBank, setTargetBank] = useState<BankName>(user?.bank_name || "CPB");
   const [targetUserId, setTargetUserId] = useState<string>(user?.id || "1");
   const [amount, setAmount] = useState<number | string>(5000);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -106,7 +106,7 @@ export default function FaucetPage() {
                 >
                   {BANK_OPTIONS.map((b) => (
                     <option key={b} value={b}>
-                      {b}
+                      {b} ({b === "CPB" ? "Common People's Bank" : b === "EB" ? "Elses Bank" : "SomeBank"})
                     </option>
                   ))}
                 </select>

@@ -24,13 +24,13 @@ import { executeTransfer, fetchUserDetails } from "@/features/bank/api";
 import { encryptPayload, createRequestSignature } from "@/features/crypto/clientCrypto";
 import { sanitizeNumber } from "@/features/crypto/sanitizer";
 
-const BANK_OPTIONS: BankName[] = ["BOA", "HDFC", "JPMC", "SWISS", "CITI"];
+const BANK_OPTIONS: BankName[] = ["CPB", "EB", "SB"];
 
 export default function TransferPage() {
   const { user, refreshBalance } = useAuth();
 
   // Form State
-  const [receiverBank, setReceiverBank] = useState<BankName>("HDFC");
+  const [receiverBank, setReceiverBank] = useState<BankName>("EB");
   const [receiverUserId, setReceiverUserId] = useState("1");
   const [amount, setAmount] = useState<number | string>("");
 
@@ -206,7 +206,7 @@ export default function TransferPage() {
                   >
                     {BANK_OPTIONS.map((b) => (
                       <option key={b} value={b}>
-                        {b} ({b === "BOA" ? "Bank of America" : b === "HDFC" ? "HDFC Bank" : b === "JPMC" ? "JPMorgan Chase" : b === "SWISS" ? "Swiss Private" : "Citigroup"})
+                        {b} ({b === "CPB" ? "Common People's Bank" : b === "EB" ? "Elses Bank" : "SomeBank"})
                       </option>
                     ))}
                   </select>

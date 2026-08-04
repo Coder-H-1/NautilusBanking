@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
-const BANK_OPTIONS: BankName[] = ["BOA", "HDFC", "JPMC", "SWISS", "CITI"];
+const BANK_OPTIONS: BankName[] = ["CPB", "EB", "SB"];
 
 export function Navbar() {
   const { user, isAuthenticated, logout, refreshBalance, selectBank } = useAuth();
