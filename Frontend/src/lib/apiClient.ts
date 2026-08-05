@@ -2,7 +2,8 @@
  * Centralized API client for communicating with the NAUTILUS Backend.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://nautilusbanking.onrender.com";
+const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || "https://nautilusbanking.onrender.com";
+const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
 export interface ApiResponse<T = unknown> {
   data?: T;
@@ -14,7 +15,8 @@ export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const url = `${BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  const url = `${BASE_URL}${cleanEndpoint}`;
 
   // Retrieve token if in browser
   let token: string | null = null;

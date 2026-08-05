@@ -34,17 +34,28 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ============================================
-# CORS — restricted to frontend domain only
+# CORS — Configured for Vercel and local development
 # ============================================
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "*")
-allowed_origins = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+custom_origins = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
+
+default_origins = [
+    "https://nautilusbanking.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+]
+
+all_origins = list(set(default_origins + custom_origins))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=all_origins if all_origins else ["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
