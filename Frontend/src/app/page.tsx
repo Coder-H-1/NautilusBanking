@@ -37,7 +37,7 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-950 leading-[1.12]">
-          Zero-Trust Multi-Bank Settlement Core
+          Zero-Trust Multi-Bank Settlement Network
         </h1>
 
         <p className="text-base sm:text-lg text-zinc-600 font-normal leading-relaxed max-w-2xl">

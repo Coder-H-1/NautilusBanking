@@ -7,8 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
-import { Coins, CheckCircle2, Building2, ArrowRight } from "lucide-react";
+import { Coins } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { requestFaucetFunds } from "@/features/bank/api";
 import { sanitizeNumber } from "@/features/crypto/sanitizer";
@@ -19,8 +18,8 @@ export default function FaucetPage() {
   const { user, refreshBalance } = useAuth();
 
   const [targetBank, setTargetBank] = useState<BankName>(user?.bank_name || "CPB");
-  const [targetUserId, setTargetUserId] = useState<string>(user?.id || "1");
-  const [amount, setAmount] = useState<number | string>(5000);
+  const [targetUserId, setTargetUserId] = useState<string>(user?.id || "");
+  const [amount, setAmount] = useState<number | string>(100);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -32,12 +31,12 @@ export default function FaucetPage() {
 
     const numAmount = sanitizeNumber(amount);
     if (numAmount <= 0) {
-      setError("Please enter a valid amount greater than 0.");
+      setError("Please enter a valid amount greater than $0.");
       return;
     }
 
-    if (numAmount > 100000) {
-      setError("Maximum single faucet deposit limit is $100,000.");
+    if (numAmount > 500) {
+      setError("Maximum faucet limit is $500 per request (max 10 requests per day).");
       return;
     }
 
@@ -58,25 +57,21 @@ export default function FaucetPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Badge variant="outline">LIQUIDITY FAUCET</Badge>
-          <span className="text-xs text-zinc-500 font-mono">CENTRAL RESERVE</span>
-        </div>
         <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-          Bank Liquidity Provider
+          Liquidity Faucet
         </h1>
         <p className="text-xs text-zinc-500 font-normal mt-0.5">
-          Inject test liquidity into participating accounts for simulation and multi-party testing.
+          Request test funds for your account (up to $500 per request, max 10 daily requests).
         </p>
       </div>
 
-      <Card>
+      <Card className="shadow-subtle">
         <CardHeader>
-          <CardTitle>Request Ledger Inflow</CardTitle>
+          <CardTitle>Request Funds</CardTitle>
           <CardDescription>
-            Deposits funds directly into the bank ledger (Max $100,000 per request).
+            Deposits funds directly into the selected bank account.
           </CardDescription>
         </CardHeader>
 
@@ -119,6 +114,7 @@ export default function FaucetPage() {
                 <input
                   type="number"
                   min="1"
+                  placeholder="0"
                   value={targetUserId}
                   onChange={(e) => setTargetUserId(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-mono text-zinc-900 shadow-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
@@ -129,10 +125,10 @@ export default function FaucetPage() {
 
             <div className="space-y-2">
               <Input
-                label="Deposit Amount (USD)"
+                label="Deposit Amount (USD - Max $500)"
                 type="number"
                 min="1"
-                max="100000"
+                max="500"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
@@ -140,14 +136,14 @@ export default function FaucetPage() {
 
               <div className="flex items-center gap-2 pt-1">
                 <span className="text-[10px] font-mono text-zinc-500 uppercase">Presets:</span>
-                {[1000, 5000, 25000, 50000].map((val) => (
+                {[50, 100, 250, 500].map((val) => (
                   <button
                     key={val}
                     type="button"
                     onClick={() => setAmount(val)}
                     className="px-2 py-0.5 rounded border border-zinc-200 bg-zinc-50 text-[11px] font-mono text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300"
                   >
-                    +${val.toLocaleString()}
+                    +${val}
                   </button>
                 ))}
               </div>
@@ -161,7 +157,7 @@ export default function FaucetPage() {
               className="w-full gap-2"
               isLoading={isSubmitting}
             >
-              <Coins className="w-3.5 h-3.5" /> Inject Liquidity to Ledger
+              <Coins className="w-3.5 h-3.5" /> Request Faucet Funds
             </Button>
           </CardFooter>
         </form>

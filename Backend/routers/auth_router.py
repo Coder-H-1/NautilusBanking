@@ -5,6 +5,7 @@ rate limiting, IP blocking, and JWT session handling backed by Supabase DB.
 """
 
 import hashlib
+import secrets
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Request, status
 from models.schemas import (
@@ -36,6 +37,25 @@ def hash_password(password: str) -> str:
     """Hash password with application salt."""
     salt = "nautilus_bank_salt_2026_acpi"
     return hashlib.sha256(f"{password}:{salt}".encode("utf-8")).hexdigest()
+
+
+def generate_8digit_user_id(supabase, table_name: str) -> int:
+    """Generates a unique 8-digit random integer ID (10000000 - 99999999)."""
+    for _ in range(10):
+        candidate_id = secrets.randbelow(90000000) + 10000000
+        try:
+            res = (
+                supabase.table(table_name)
+                .select("bank_user_id")
+                .eq("bank_user_id", candidate_id)
+                .limit(1)
+                .execute()
+            )
+            if not res.data or len(res.data) == 0:
+                return candidate_id
+        except Exception:
+            return candidate_id
+    return secrets.randbelow(90000000) + 10000000
 
 
 @router.post("/check-email", response_model=CheckEmailResponse)
@@ -100,7 +120,7 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
     clean_name = req.account_holder_name.strip().lower()
     clean_email = req.email.strip().lower()
     pwd_hash = hash_password(req.password)
-    initial_balance = 1000
+    initial_balance = 100
 
     supabase = get_supabase_client()
     if not supabase:
@@ -127,10 +147,14 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
                 detail=f"User already exists in {req.bank_id.upper()}. Please login instead."
             )
 
-        # Insert new account with initial balance
+        # Generate unique 8-digit random user ID
+        generated_id = generate_8digit_user_id(supabase, table_name)
+
+        # Insert new account with initial balance ($100) and 8-digit ID
         insert_res = (
             supabase.table(table_name)
             .insert({
+                "bank_user_id": generated_id,
                 "account_holder_name": clean_name,
                 "email": clean_email,
                 "password_hash": pwd_hash,
@@ -139,24 +163,30 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
             .execute()
         )
         if insert_res.data and len(insert_res.data) > 0:
-            bank_user_id = insert_res.data[0].get("bank_user_id")
+            bank_user_id = insert_res.data[0].get("bank_user_id", generated_id)
             balance = insert_res.data[0].get("balance", initial_balance)
+        else:
+            bank_user_id = generated_id
     except HTTPException as he:
         raise he
     except Exception as e:
         print(f"[SIGNUP DB INSERT ERROR]: {e}")
         # Try fallback insert if email/password_hash columns are pending migration
         try:
+            fallback_id = generate_8digit_user_id(supabase, table_name)
             fallback_res = (
                 supabase.table(table_name)
                 .insert({
+                    "bank_user_id": fallback_id,
                     "account_holder_name": clean_name,
                     "balance": initial_balance,
                 })
                 .execute()
             )
             if fallback_res.data and len(fallback_res.data) > 0:
-                bank_user_id = fallback_res.data[0].get("bank_user_id")
+                bank_user_id = fallback_res.data[0].get("bank_user_id", fallback_id)
+            else:
+                bank_user_id = fallback_id
         except Exception as e2:
             print(f"[SIGNUP DB FALLBACK ERROR]: {e2}")
             raise HTTPException(
@@ -249,7 +279,7 @@ async def custom_login(req: CustomLoginRequest, request: Request):
     if not user_row:
         raise HTTPException(
             status_code=401,
-            detail=f"No account found with this email in {req.bank_id.upper()}. Please sign up."
+            detail="You don't have any accounts in this bank. Please choose another."
         )
 
     # Validate name
@@ -344,7 +374,7 @@ async def verify_otp_endpoint(req: OTPVerifyRequest, request: Request):
     if not user_row:
         raise HTTPException(
             status_code=404,
-            detail=f"Account not found in bank {bank_id.upper()}."
+            detail="You don't have any accounts in this bank. Please choose another."
         )
 
     bank_user_id = user_row.get("bank_user_id")

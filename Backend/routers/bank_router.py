@@ -106,6 +106,29 @@ async def get_receiver_info(
         )
 
 
+import datetime
+from typing import Dict, Any
+
+FAUCET_USAGE: Dict[str, Dict[str, Any]] = {}
+FAUCET_DAILY_LIMIT = 10
+FAUCET_MAX_AMOUNT = 500
+MAX_ACCOUNT_BALANCE = 100_000_000
+
+
+def check_and_increment_faucet_limit(bank_id: str, bank_user_id: int) -> tuple[bool, str]:
+    """Ensures a user does not exceed 10 faucet requests per day."""
+    today = datetime.date.today().isoformat()
+    key = f"{bank_id.lower()}_{bank_user_id}"
+    usage = FAUCET_USAGE.get(key)
+    if not usage or usage.get("date") != today:
+        FAUCET_USAGE[key] = {"date": today, "count": 1}
+        return True, ""
+    if usage["count"] >= FAUCET_DAILY_LIMIT:
+        return False, f"Daily limit reached ({FAUCET_DAILY_LIMIT} requests/day). Please try again tomorrow."
+    usage["count"] += 1
+    return True, ""
+
+
 @router.post("/userReq", response_model=BankUserResponse)
 async def bank_user_faucet_request(
     req: BankMoneyRequest,
@@ -113,12 +136,20 @@ async def bank_user_faucet_request(
 ):
     """
     Common/Authenticated route:
-    Bank deposits requested funds to user's account up to a limit.
+    Bank deposits requested funds to user's account up to $500 per request,
+    max 10 requests per day, capped at $100 Million balance.
     """
-    if req.amount > 100000:
+    if req.amount > FAUCET_MAX_AMOUNT or req.amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Requested amount exceeds single request limit of 100,000.",
+            detail=f"Requested amount must be between $1 and ${FAUCET_MAX_AMOUNT} per request.",
+        )
+
+    allowed, limit_msg = check_and_increment_faucet_limit(req.bank_id, req.bank_user_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=limit_msg,
         )
 
     try:
@@ -132,6 +163,12 @@ async def bank_user_faucet_request(
             raise HTTPException(status_code=404, detail="User account not found.")
 
         current_balance = res.data[0]["balance"]
+        if current_balance + req.amount > MAX_ACCOUNT_BALANCE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Account balance cannot exceed ${MAX_ACCOUNT_BALANCE:,} limit.",
+            )
+
         new_balance = current_balance + req.amount
 
         # Update balance
@@ -147,7 +184,7 @@ async def bank_user_faucet_request(
             account_holder_name=res.data[0]["account_holder_name"],
             balance=new_balance,
             bank_user_id=req.bank_user_id,
-            message="Funds successfully credited by bank.",
+            message=f"${req.amount:,} funds successfully credited by bank faucet.",
         )
     except Exception as e:
         if isinstance(e, HTTPException):

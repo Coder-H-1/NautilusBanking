@@ -17,7 +17,7 @@ export default function PrivacyPolicyPage() {
             className="flex items-center gap-2 text-xs font-mono tracking-wider text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>BACK TO NAUTILUS CORE</span>
+            <span>BACK TO NAUTILUS</span>
           </Link>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium bg-primary/10 text-primary border border-primary/20">

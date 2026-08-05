@@ -212,6 +212,30 @@ class QRResponse(BaseModel):
     message: Optional[str] = None
 
 
+class FaucetQRGenerateRequest(BaseModel):
+    """Request to generate a claimable Faucet QR code."""
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
+    bank_user_id: int = Field(..., gt=0)
+    amount: int = Field(..., gt=0, le=500, description="Amount up to $500")
+
+
+class FaucetQRResponse(BaseModel):
+    """Response for Faucet QR generation."""
+    success: bool
+    token: Optional[str] = None
+    amount: Optional[int] = None
+    qr_image_base64: Optional[str] = None
+    expires_at: Optional[str] = None
+    message: Optional[str] = None
+
+
+class FaucetClaimRequest(BaseModel):
+    """Request to claim funds via scanned Faucet QR token."""
+    token: str = Field(..., min_length=1, description="Faucet QR claim token")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
+    bank_user_id: int = Field(..., gt=0)
+
+
 # ============================================
 # Encryption Schemas
 # ============================================

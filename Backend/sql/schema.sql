@@ -17,31 +17,31 @@ DROP TABLE IF EXISTS ip_blocks CASCADE;
 -- ========================================
 
 CREATE TABLE IF NOT EXISTS cpb_database (
-    bank_user_id SERIAL PRIMARY KEY,
+    bank_user_id BIGINT PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
+    balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS eb_database (
-    bank_user_id SERIAL PRIMARY KEY,
+    bank_user_id BIGINT PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
+    balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS sb_database (
-    bank_user_id SERIAL PRIMARY KEY,
+    bank_user_id BIGINT PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
+    balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -85,9 +85,9 @@ CREATE INDEX IF NOT EXISTS idx_ip_blocks_ip ON ip_blocks(ip_address);
 CREATE TABLE IF NOT EXISTS transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sender_bank TEXT NOT NULL,
-    sender_user_id INT NOT NULL,
+    sender_user_id BIGINT NOT NULL,
     receiver_bank TEXT NOT NULL,
-    receiver_user_id INT NOT NULL,
+    receiver_user_id BIGINT NOT NULL,
     amount BIGINT NOT NULL CHECK (amount > 0),
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'success', 'failed')),
@@ -106,15 +106,15 @@ CREATE INDEX IF NOT EXISTS idx_txn_status ON transactions(status);
 
 CREATE OR REPLACE FUNCTION transfer_money(
     p_sender_bank TEXT,
-    p_sender_user_id INT,
+    p_sender_user_id BIGINT,
     p_receiver_bank TEXT,
-    p_receiver_user_id INT,
+    p_receiver_user_id BIGINT,
     p_amount BIGINT
 ) RETURNS UUID AS $$
 DECLARE
     v_txn_id UUID;
     v_sender_balance BIGINT;
-    v_receiver_exists INT;
+    v_receiver_balance BIGINT;
 BEGIN
     -- Generate transaction ID
     v_txn_id := gen_random_uuid();
@@ -145,15 +145,23 @@ BEGIN
         RETURN v_txn_id;
     END IF;
 
-    -- Check receiver exists
+    -- Check receiver exists and lock row
     EXECUTE format(
-        'SELECT bank_user_id FROM %I WHERE bank_user_id = $1',
+        'SELECT balance FROM %I WHERE bank_user_id = $1 FOR UPDATE',
         lower(p_receiver_bank) || '_database'
-    ) INTO v_receiver_exists USING p_receiver_user_id;
+    ) INTO v_receiver_balance USING p_receiver_user_id;
 
-    IF v_receiver_exists IS NULL THEN
+    IF v_receiver_balance IS NULL THEN
         UPDATE transactions SET status = 'failed',
             failure_reason = 'Receiver account not found'
+            WHERE id = v_txn_id;
+        RETURN v_txn_id;
+    END IF;
+
+    -- Check receiver max balance cap ($100,000,000)
+    IF (v_receiver_balance + p_amount) > 100000000 THEN
+        UPDATE transactions SET status = 'failed',
+            failure_reason = 'Receiver account balance cannot exceed $100,000,000'
             WHERE id = v_txn_id;
         RETURN v_txn_id;
     END IF;

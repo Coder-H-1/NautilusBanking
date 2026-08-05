@@ -87,3 +87,26 @@ export async function refreshEncryptedQR(bankId: BankName, bankUserId: string) {
     }),
   });
 }
+
+export async function fetchFaucetQR(bankId: BankName, bankUserId: string, amount: number) {
+  return apiRequest<QRResponseData>("/qr/faucet/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      bank_id: bankId,
+      bank_user_id: bankUserId,
+      amount,
+    }),
+  });
+}
+
+export async function claimFaucetQR(bankId: BankName, bankUserId: string, encryptedData: string) {
+  return apiRequest<BankUserResponse>("/qr/faucet/claim", {
+    method: "POST",
+    body: JSON.stringify({
+      bank_id: bankId,
+      bank_user_id: bankUserId,
+      encrypted_data: encryptedData,
+    }),
+  });
+}
+

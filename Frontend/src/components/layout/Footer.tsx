@@ -10,13 +10,13 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900">NAUTILUS</span>
             <span className="text-zinc-400">|</span>
-            <span>Autonomous ACPI Inter-Bank Core</span>
+            <span>Autonomous ACPI Inter-Bank Network</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5">
               <Server className="w-3.5 h-3.5 text-zinc-700" />
-              <span>ACPI Protocol Core</span>
+              <span>ACPI Settlement Protocol</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Shield className="w-3.5 h-3.5 text-zinc-700" />

@@ -77,6 +77,70 @@ class QRCodeMaker:
             "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires_at_epoch)),
         }
 
+    def create_faucet_qr(self, amount: int) -> Dict[str, Any]:
+        """
+        Creates a timed, scannable QR code for a faucet deposit request (max $500).
+        """
+        self._cleanup_expired()
+
+        raw_payload = f"faucet:{self.bank_id}:{self.bank_user_id}:{amount}:{int(time.time())}"
+        encrypted_payload = encrypt_data(raw_payload)
+        expires_at_epoch = time.time() + EXPIRATION_SECONDS
+
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(encrypted_payload)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        faucet_token = f"faucet_{self.bank_id}_{self.bank_user_id}_{int(time.time())}"
+        QR_STORE[faucet_token] = {
+            "bank_id": self.bank_id,
+            "bank_user_id": self.bank_user_id,
+            "amount": amount,
+            "payload": encrypted_payload,
+            "expires_at_epoch": expires_at_epoch,
+            "img_base64": img_base64,
+            "claimed": False,
+        }
+
+        return {
+            "success": True,
+            "token": faucet_token,
+            "amount": amount,
+            "qr_image_base64": f"data:image/png;base64,{img_base64}",
+            "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires_at_epoch)),
+        }
+
+    @staticmethod
+    def claim_faucet_qr(token: str, bank_id: str, bank_user_id: int) -> tuple[bool, int, str]:
+        """
+        Validates and marks a faucet QR token as claimed.
+        """
+        now = time.time()
+        record = QR_STORE.get(token)
+        if not record:
+            return False, 0, "Faucet QR code expired or invalid."
+        if record.get("expires_at_epoch", 0) < now:
+            QR_STORE.pop(token, None)
+            return False, 0, "Faucet QR code has expired."
+        if record.get("claimed"):
+            return False, 0, "This Faucet QR code has already been claimed."
+        if record.get("bank_id") != bank_id.lower() or record.get("bank_user_id") != bank_user_id:
+            return False, 0, "Account credentials do not match this QR code."
+
+        record["claimed"] = True
+        amount = record.get("amount", 0)
+        return True, amount, "Faucet QR code verified successfully."
+
     def delete(self) -> bool:
         """Deletes the active QR code for this user."""
         token_key = f"{self.bank_id}_{self.bank_user_id}"
