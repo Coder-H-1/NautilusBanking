@@ -1,6 +1,6 @@
 """
-NAUTILUS Banking System — Brevo Email Service
-Using same workflow and functions as WEB (send_email_via_brevo, EmailMessage, send_otp_email).
+NAUTILUS Banking System — Universal Email Service
+Supports both Brevo (xkeysib-...) and Resend (re_...) API keys seamlessly.
 """
 
 import os
@@ -12,12 +12,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
-def get_brevo_api_key() -> str:
-    """Retrieve Brevo API key from multiple possible env variable names."""
+def get_email_api_key() -> str:
+    """Retrieve API key for Brevo or Resend from multiple possible env variable names."""
     return (
-        os.getenv("Brevo_Key")
+        os.getenv("RESEND_API_KEY")
+        or os.getenv("Resend_Key")
+        or os.getenv("Brevo_Key")
         or os.getenv("BREVO_API_KEY")
         or os.getenv("brevo_api_key")
         or os.getenv("BREVO_KEY")
@@ -25,8 +28,15 @@ def get_brevo_api_key() -> str:
     ).strip()
 
 
-def get_brevo_sender_email() -> str:
-    """Retrieve verified Brevo sender email."""
+def get_sender_email(is_resend: bool = False) -> str:
+    """Retrieve verified sender email for provider."""
+    if is_resend:
+        return (
+            os.getenv("RESEND_SENDER_EMAIL")
+            or os.getenv("BREVO_SENDER_EMAIL")
+            or os.getenv("SMTP_EMAIL")
+            or "NAUTILUS <onboarding@resend.dev>"
+        ).strip()
     return (
         os.getenv("BREVO_SENDER_EMAIL")
         or os.getenv("brevo_sender_email")
@@ -46,52 +56,71 @@ class EmailMessage(BaseModel):
 
 async def send_email_via_brevo(email: EmailMessage) -> bool:
     """
-    Core function to send emails via Brevo SMTP API (same workflow as WEB).
+    Core function to dispatch emails via Brevo or Resend depending on API key type.
     """
-    api_key = get_brevo_api_key()
-    sender_email = get_brevo_sender_email()
-
+    api_key = get_email_api_key()
     if not api_key:
-        print("[BREVO WARNING] Brevo API key not configured in environment.")
+        print("[EMAIL WARNING] No Email API key configured in environment.")
         return False
 
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
-
-    payload = {
-        "sender": {"name": "NAUTILUS Banking System", "email": sender_email},
-        "to": [{"email": email.to_email}],
-        "subject": email.subject,
-        "htmlContent": email.html_content
-    }
-
-    if email.to_name:
-        payload["to"][0]["name"] = email.to_name
-
-    if email.text_content:
-        payload["textContent"] = email.text_content
+    is_resend = api_key.startswith("re_")
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         try:
-            response = await client.post(BREVO_API_URL, headers=headers, json=payload)
-            response.raise_for_status()
-            print(f"[BREVO SUCCESS] Email successfully sent to {email.to_email}")
-            return True
+            if is_resend:
+                sender = get_sender_email(is_resend=True)
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "from": sender,
+                    "to": [email.to_email],
+                    "subject": email.subject,
+                    "html": email.html_content
+                }
+                if email.text_content:
+                    payload["text"] = email.text_content
+
+                response = await client.post(RESEND_API_URL, headers=headers, json=payload)
+                response.raise_for_status()
+                print(f"[RESEND SUCCESS] Email sent to {email.to_email}")
+                return True
+            else:
+                sender_email = get_sender_email(is_resend=False)
+                headers = {
+                    "accept": "application/json",
+                    "api-key": api_key,
+                    "content-type": "application/json"
+                }
+                payload = {
+                    "sender": {"name": "NAUTILUS Banking System", "email": sender_email},
+                    "to": [{"email": email.to_email}],
+                    "subject": email.subject,
+                    "htmlContent": email.html_content
+                }
+                if email.to_name:
+                    payload["to"][0]["name"] = email.to_name
+                if email.text_content:
+                    payload["textContent"] = email.text_content
+
+                response = await client.post(BREVO_API_URL, headers=headers, json=payload)
+                response.raise_for_status()
+                print(f"[BREVO SUCCESS] Email sent to {email.to_email}")
+                return True
+
         except httpx.HTTPStatusError as e:
-            error_details = e.response.text
-            print(f"[BREVO HTTP ERROR] Failed to send email: {error_details}")
+            provider = "RESEND" if is_resend else "BREVO"
+            print(f"[{provider} HTTP ERROR] Failed to send email: {e.response.text}")
             return False
         except Exception as e:
-            print(f"[BREVO EXCEPTION] Error sending email: {str(e)}")
+            print(f"[EMAIL EXCEPTION] Error sending email: {str(e)}")
             return False
 
 
 async def send_otp_email(to_email: str, otp_code: str, account_holder_name: Optional[str] = None, bank_id: str = "CPB") -> bool:
     """
-    Sends OTP verification code email with styled HTML template matching WEB.
+    Sends OTP verification code email with styled HTML template.
     """
     name = (account_holder_name or "Valued Customer").title()
     bank_upper = bank_id.upper()
@@ -132,7 +161,6 @@ async def send_login_notification(to_email: str, account_holder_name: str, bank_
     """
     name = (account_holder_name or "Valued Customer").title()
     bank_upper = bank_id.upper()
-    now_str = httpx._types.HeaderTypes  # dummy reference check
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; background-color: #ffffff;">

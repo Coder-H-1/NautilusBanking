@@ -9,11 +9,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing to_email or otp_code" }, { status: 400 });
     }
 
-    const apiKey = process.env.Brevo_Key || process.env.BREVO_API_KEY || "";
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || "nautilus-project-00001@gmail.com";
+    const apiKey = (
+      process.env.RESEND_API_KEY ||
+      process.env.Resend_Key ||
+      process.env.Brevo_Key ||
+      process.env.BREVO_API_KEY ||
+      ""
+    ).trim();
 
     if (!apiKey) {
-      return NextResponse.json({ success: false, error: "Brevo API key not configured on server." }, { status: 500 });
+      return NextResponse.json({ success: false, error: "No email API key configured on server." }, { status: 500 });
     }
 
     const bankUpper = (bank_id || "CPB").toUpperCase();
@@ -39,30 +44,58 @@ export async function POST(req: NextRequest) {
     </div>
     `;
 
-    const payload = {
-      sender: { name: "NAUTILUS Banking System", email: senderEmail },
-      to: [{ email: to_email, name: name }],
-      subject: `NAUTILUS [${bankUpper}] — Your Verification Code: ${otp_code}`,
-      htmlContent: htmlContent,
-    };
+    const isResend = apiKey.startsWith("re_");
 
-    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "accept": "application/json",
-        "api-key": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    if (isResend) {
+      const sender = process.env.RESEND_SENDER_EMAIL || process.env.BREVO_SENDER_EMAIL || "NAUTILUS <onboarding@resend.dev>";
+      const resendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: sender,
+          to: [to_email],
+          subject: `NAUTILUS [${bankUpper}] — Your Verification Code: ${otp_code}`,
+          html: htmlContent,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[BREVO API ERROR]", errorText);
-      return NextResponse.json({ success: false, error: errorText }, { status: response.status });
+      if (!resendRes.ok) {
+        const errorText = await resendRes.text();
+        console.error("[RESEND API ERROR]", errorText);
+        return NextResponse.json({ success: false, error: errorText }, { status: resendRes.status });
+      }
+
+      return NextResponse.json({ success: true, message: "Email sent successfully via Resend." });
+    } else {
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || "nautilus-project-00001@gmail.com";
+      const payload = {
+        sender: { name: "NAUTILUS Banking System", email: senderEmail },
+        to: [{ email: to_email, name: name }],
+        subject: `NAUTILUS [${bankUpper}] — Your Verification Code: ${otp_code}`,
+        htmlContent: htmlContent,
+      };
+
+      const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": apiKey,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!brevoRes.ok) {
+        const errorText = await brevoRes.text();
+        console.error("[BREVO API ERROR]", errorText);
+        return NextResponse.json({ success: false, error: errorText }, { status: brevoRes.status });
+      }
+
+      return NextResponse.json({ success: true, message: "Email sent successfully via Brevo." });
     }
-
-    return NextResponse.json({ success: true, message: "Email sent successfully via Brevo." });
   } catch (err: any) {
     console.error("[EMAIL ROUTE ERROR]", err);
     return NextResponse.json({ success: false, error: err.message || "Internal error" }, { status: 500 });
