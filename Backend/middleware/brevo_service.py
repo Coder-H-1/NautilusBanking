@@ -18,9 +18,7 @@ RESEND_API_URL = "https://api.resend.com/emails"
 def get_email_api_key() -> str:
     """Retrieve API key for Brevo or Resend from multiple possible env variable names."""
     return (
-        os.getenv("RESEND_API_KEY")
-        or os.getenv("Resend_Key")
-        or os.getenv("Brevo_Key")
+        os.getenv("Brevo_Key")
         or os.getenv("BREVO_API_KEY")
         or os.getenv("brevo_api_key")
         or os.getenv("BREVO_KEY")
@@ -30,19 +28,12 @@ def get_email_api_key() -> str:
 
 def get_sender_email(is_resend: bool = False) -> str:
     """Retrieve verified sender email for provider."""
-    if is_resend:
-        return (
-            os.getenv("RESEND_SENDER_EMAIL")
-            or os.getenv("BREVO_SENDER_EMAIL")
-            or os.getenv("SMTP_EMAIL")
-            or "NAUTILUS <onboarding@resend.dev>"
-        ).strip()
     return (
         os.getenv("BREVO_SENDER_EMAIL")
         or os.getenv("brevo_sender_email")
         or os.getenv("SMTP_EMAIL")
         or os.getenv("SENDER_EMAIL")
-        or "nautilus-project-00001@gmail.com"
+        or ""
     ).strip()
 
 
