@@ -1,18 +1,27 @@
 -- ============================================
 -- NAUTILUS Banking System — Supabase Schema
--- Run this in Supabase SQL Editor
--- All table names lowercase to avoid PostgreSQL case issues
+-- Run this in Supabase SQL Editor to recreate tables
 -- ============================================
 
+-- Drop old tables if recreating
+DROP TABLE IF EXISTS cpb_database CASCADE;
+DROP TABLE IF EXISTS eb_database CASCADE;
+DROP TABLE IF EXISTS sb_database CASCADE;
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS otp_codes CASCADE;
+DROP TABLE IF EXISTS ip_blocks CASCADE;
 
 -- ========================================
 -- BANK USER TABLES (one per bank)
+-- account_holder_name: lowercase, letters and spaces only
 -- ========================================
 
 CREATE TABLE IF NOT EXISTS cpb_database (
     bank_user_id SERIAL PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 0 CHECK (balance >= 0),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -20,7 +29,9 @@ CREATE TABLE IF NOT EXISTS cpb_database (
 CREATE TABLE IF NOT EXISTS eb_database (
     bank_user_id SERIAL PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 0 CHECK (balance >= 0),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -28,11 +39,44 @@ CREATE TABLE IF NOT EXISTS eb_database (
 CREATE TABLE IF NOT EXISTS sb_database (
     bank_user_id SERIAL PRIMARY KEY,
     account_holder_name TEXT NOT NULL,
-    balance BIGINT NOT NULL DEFAULT 0 CHECK (balance >= 0),
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    balance BIGINT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ========================================
+-- OTP VERIFICATION TABLE
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS otp_codes (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    bank_id TEXT NOT NULL,
+    otp_code TEXT NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    is_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    ip_address TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_otp_email_bank ON otp_codes(email, bank_id);
+
+-- ========================================
+-- IP BLOCKS TABLE
+-- ========================================
+
+CREATE TABLE IF NOT EXISTS ip_blocks (
+    id SERIAL PRIMARY KEY,
+    ip_address TEXT NOT NULL,
+    blocked_until TIMESTAMPTZ NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ip_blocks_ip ON ip_blocks(ip_address);
 
 -- ========================================
 -- TRANSACTION LEDGER
@@ -55,12 +99,9 @@ CREATE INDEX IF NOT EXISTS idx_txn_sender ON transactions(sender_bank, sender_us
 CREATE INDEX IF NOT EXISTS idx_txn_receiver ON transactions(receiver_bank, receiver_user_id);
 CREATE INDEX IF NOT EXISTS idx_txn_status ON transactions(status);
 
-
 -- ========================================
 -- ATOMIC TRANSFER FUNCTION (Double Ledger)
 -- Pass bank IDs in lowercase: 'cpb', 'eb', 'sb'
--- This function runs as a single ACID transaction.
--- If anything fails, the whole thing rolls back.
 -- ========================================
 
 CREATE OR REPLACE FUNCTION transfer_money(
@@ -85,7 +126,6 @@ BEGIN
         p_receiver_bank, p_receiver_user_id, p_amount, 'pending');
 
     -- Check sender balance (dynamic table, lowercase)
-    -- FOR UPDATE locks the row to prevent race conditions
     EXECUTE format(
         'SELECT balance FROM %I WHERE bank_user_id = $1 FOR UPDATE',
         lower(p_sender_bank) || '_database'
@@ -119,16 +159,12 @@ BEGIN
     END IF;
 
     -- DOUBLE LEDGER: Debit sender, Credit receiver
-    -- Both happen in same transaction — if one fails, both roll back
-
-    -- Debit sender
     EXECUTE format(
         'UPDATE %I SET balance = balance - $1, updated_at = NOW()
          WHERE bank_user_id = $2',
         lower(p_sender_bank) || '_database'
     ) USING p_amount, p_sender_user_id;
 
-    -- Credit receiver
     EXECUTE format(
         'UPDATE %I SET balance = balance + $1, updated_at = NOW()
          WHERE bank_user_id = $2',

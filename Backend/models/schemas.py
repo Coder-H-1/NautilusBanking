@@ -1,42 +1,109 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import Optional
 from uuid import UUID
+import re
 
 
 # ============================================
-# Auth Schemas
+# Custom Auth & Security Schemas
 # ============================================
 
-class AuthLoginRequest(BaseModel):
-    """Login request body."""
+class CustomLoginRequest(BaseModel):
+    """Login request with account name, email, bank, and password."""
+    account_holder_name: str = Field(..., min_length=1, description="Account holder full name")
     email: str = Field(..., description="User email address")
-    password: str = Field(..., min_length=8, description="User password")
-
-
-class AuthSignupRequest(BaseModel):
-    """Signup request body."""
-    email: str = Field(..., description="User email address")
-    password: str = Field(..., min_length=8, description="User password")
-    account_holder_name: str = Field(..., min_length=1, description="Full name of the account holder")
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
+    password: str = Field(..., min_length=6, description="User password or client-side hash")
+
+    @validator("account_holder_name")
+    def validate_name(cls, v):
+        # Case insensitive (lowercase preferred), no signs or numbers
+        cleaned = v.strip().lower()
+        if not re.match(r"^[a-zA-Z\s]+$", cleaned):
+            raise ValueError("Account holder name must contain only letters and spaces (no numbers or symbols)")
+        return cleaned
 
 
-class AuthDeviceRequest(BaseModel):
-    """Device verification request body."""
-    device_fingerprint: str = Field(..., description="Unique device identifier")
-    token: str = Field(..., description="Session token to verify")
+class CustomSignupRequest(BaseModel):
+    """Signup request with account name, email, bank, and password."""
+    account_holder_name: str = Field(..., min_length=1, description="Account holder full name")
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
+    password: str = Field(..., min_length=6, description="User password or client-side hash")
+
+    @validator("account_holder_name")
+    def validate_name(cls, v):
+        cleaned = v.strip().lower()
+        if not re.match(r"^[a-zA-Z\s]+$", cleaned):
+            raise ValueError("Account holder name must contain only letters and spaces (no numbers or symbols)")
+        return cleaned
+
+    @validator("email")
+    def validate_email(cls, v):
+        email_clean = v.strip().lower()
+        if "@" not in email_clean or "." not in email_clean:
+            raise ValueError("Invalid email format")
+        return email_clean
+
+
+class OTPVerifyRequest(BaseModel):
+    """Request to verify an OTP code during login or signup."""
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+    flow_type: Optional[str] = Field("login", description="Flow type: 'login' or 'signup'")
+    account_holder_name: Optional[str] = None
+
+
+class OTPResendRequest(BaseModel):
+    """Request to resend OTP with cooldown."""
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
+    account_holder_name: Optional[str] = None
+
+
+class CheckEmailRequest(BaseModel):
+    """Request to check if an email already exists in a given bank."""
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
+
+
+class CheckEmailResponse(BaseModel):
+    """Response for email existence check."""
+    success: bool
+    exists: bool
+    message: str
 
 
 class AuthResponse(BaseModel):
     """Auth response body."""
     success: bool
     message: str
+    requires_otp: Optional[bool] = False
     access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
     bank_user_id: Optional[int] = None
     bank_id: Optional[str] = None
     account_holder_name: Optional[str] = None
+    email: Optional[str] = None
     balance: Optional[int] = None
+
+
+# Legacy Auth Schemas for backwards compatibility
+class AuthLoginRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=6, description="User password")
+
+
+class AuthSignupRequest(BaseModel):
+    email: str = Field(..., description="User email address")
+    password: str = Field(..., min_length=6, description="User password")
+    account_holder_name: str = Field(..., min_length=1, description="Full name")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
+
+
+class AuthDeviceRequest(BaseModel):
+    device_fingerprint: str = Field(..., description="Unique device identifier")
+    token: str = Field(..., description="Session token to verify")
 
 
 # ============================================
@@ -64,6 +131,7 @@ class BankUserResponse(BaseModel):
     """Response for bank user data."""
     success: bool
     account_holder_name: Optional[str] = None
+    email: Optional[str] = None
     balance: Optional[int] = None
     bank_user_id: Optional[int] = None
     message: Optional[str] = None

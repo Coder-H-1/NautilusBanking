@@ -2,55 +2,94 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
+import { BankName } from "@/features/auth/types";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
-import { Lock, ArrowRight, Shield } from "lucide-react";
+import { OtpModal } from "@/components/auth/OtpModal";
+import { Shield, ArrowRight, Eye, EyeOff, Building2, User, Mail, Lock } from "lucide-react";
 import { sanitizeInput } from "@/features/crypto/sanitizer";
 
 export default function LoginPage() {
+  const [accountHolderName, setAccountHolderName] = useState("");
   const [email, setEmail] = useState("");
+  const [bankId, setBankId] = useState<BankName>("CPB");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+
   const { login } = useAuth();
   const router = useRouter();
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Letters and spaces only
+    const val = e.target.value.replace(/[^a-zA-Z\s]/g, "");
+    setAccountHolderName(val);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    const cleanEmail = sanitizeInput(email);
-    if (!cleanEmail) {
-      setError("Please enter a valid email address.");
+    const cleanName = sanitizeInput(accountHolderName).trim().toLowerCase();
+    const cleanEmail = sanitizeInput(email).trim().toLowerCase();
+
+    if (!cleanName) {
+      setError("Please enter your account holder name (letters only).");
+      return;
+    }
+
+    if (!cleanEmail || !cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setError("Please provide a valid email address.");
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      setError("Please enter your password (minimum 6 characters).");
       return;
     }
 
     setLoading(true);
-    const res = await login(cleanEmail, password || "SecurePass123!");
+    const res = await login({
+      account_holder_name: cleanName,
+      email: cleanEmail,
+      bank_id: bankId,
+      password: password,
+    });
     setLoading(false);
 
     if (res.success) {
-      router.push("/dashboard");
+      if (res.requires_otp) {
+        setShowOtpModal(true);
+      } else {
+        router.push("/dashboard");
+      }
     } else {
-      setError(res.error || "Authentication failed.");
+      setError(res.error || "Authentication failed. Please check your credentials.");
     }
   };
 
+  const handleOtpSuccess = () => {
+    setShowOtpModal(false);
+    router.push("/dashboard");
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-16rem)] py-12">
-      <div className="w-full max-w-md space-y-4">
-        <Card>
+    <div className="flex items-center justify-center min-h-[calc(100vh-16rem)] py-12 px-4">
+      <div className="w-full max-w-lg space-y-4">
+        <Card className="border border-border/80 shadow-lg">
           <CardHeader className="space-y-1">
-            <div className="flex items-center gap-2 mb-1 text-zinc-900">
+            <div className="flex items-center gap-2 mb-1 text-primary">
               <Shield className="w-4 h-4" />
-              <span className="text-xs font-mono font-bold tracking-wider">NAUTILUS AUTH</span>
+              <span className="text-xs font-mono font-bold tracking-wider">NAUTILUS SECURE ACCESS</span>
             </div>
-            <CardTitle>Sign In to Bank Account</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your multi-bank ACPI console.
+            <CardTitle className="text-2xl font-bold tracking-tight">Sign In to Bank Account</CardTitle>
+            <CardDescription className="text-xs font-mono">
+              Provide your verified account details to initiate 2FA login verification.
             </CardDescription>
           </CardHeader>
 
@@ -62,44 +101,128 @@ export default function LoginPage() {
                 </Alert>
               )}
 
-              <Input
-                label="Email Address"
-                type="email"
-                placeholder="user@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              {/* Account Holder Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-primary" />
+                  ACCOUNT HOLDER NAME
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. john doe (letters only)"
+                  value={accountHolderName}
+                  onChange={handleNameChange}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border bg-secondary/30 text-foreground text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  required
+                />
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  Case-insensitive, letters and spaces only.
+                </p>
+              </div>
 
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                helperText="Defaults to SecurePass123! if registered recently"
-              />
+              {/* Email Address */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-primary" />
+                  REGISTERED EMAIL
+                </label>
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-border bg-secondary/30 text-foreground text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  required
+                />
+              </div>
+
+              {/* Issuing Bank Selector */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-primary" />
+                  ISSUING BANK
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["CPB", "EB", "SB"] as BankName[]).map((bank) => (
+                    <button
+                      key={bank}
+                      type="button"
+                      onClick={() => setBankId(bank)}
+                      className={`py-2 px-3 rounded-lg text-xs font-mono font-bold border transition-all ${
+                        bankId === bank
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : "bg-secondary/20 text-muted-foreground border-border hover:border-foreground/40 hover:text-foreground"
+                      }`}
+                    >
+                      {bank}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Password with Show/Hide Toggle */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-primary" />
+                  PASSWORD
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-3.5 py-2.5 pr-10 rounded-lg border border-border bg-secondary/30 text-foreground text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
             </CardContent>
 
-            <CardFooter className="flex flex-col gap-3">
-              <Button type="submit" className="w-full" size="md" isLoading={loading}>
-                Access Console <ArrowRight className="w-4 h-4" />
+            <CardFooter className="flex flex-col gap-3 pt-2">
+              <Button
+                type="submit"
+                className="w-full font-mono text-xs tracking-wider py-2.5"
+                size="md"
+                isLoading={loading}
+              >
+                VERIFY CREDENTIALS & SEND OTP <ArrowRight className="w-4 h-4" />
               </Button>
 
-              <div className="text-center text-xs text-zinc-500">
-                Don&apos;t have an account yet?{" "}
-                <button
-                  type="button"
-                  onClick={() => router.push("/signup")}
-                  className="font-semibold text-zinc-900 hover:underline"
-                >
-                  Open Bank Account
-                </button>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs font-mono text-muted-foreground w-full pt-2 border-t border-border/40">
+                <div>
+                  No bank account yet?{" "}
+                  <Link href="/signup" className="font-semibold text-foreground hover:underline">
+                    Create Account
+                  </Link>
+                </div>
+                <Link href="/privacy-policy" className="hover:underline text-[11px]">
+                  Privacy Policy
+                </Link>
               </div>
             </CardFooter>
           </form>
         </Card>
       </div>
+
+      {/* OTP Verification Modal */}
+      <OtpModal
+        isOpen={showOtpModal}
+        email={email.trim().toLowerCase()}
+        bankId={bankId}
+        accountHolderName={accountHolderName.trim().toLowerCase()}
+        flowType="login"
+        onSuccess={handleOtpSuccess}
+        onClose={() => setShowOtpModal(false)}
+      />
     </div>
   );
 }

@@ -1,18 +1,45 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AuthState, BankName, UserAccount } from "./types";
+import {
+  AuthState,
+  BankName,
+  UserAccount,
+  CustomLoginPayload,
+  CustomSignupPayload,
+  OTPVerifyPayload,
+  AuthServerResponse,
+} from "./types";
 import { apiRequest } from "@/lib/apiClient";
 import { fetchUserDetails } from "../bank/api";
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (
-    name: string,
+  login: (payload: CustomLoginPayload) => Promise<{
+    success: boolean;
+    requires_otp?: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  signup: (payload: CustomSignupPayload) => Promise<{
+    success: boolean;
+    requires_otp?: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  verifyOtp: (payload: OTPVerifyPayload) => Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  resendOtp: (
     email: string,
     bankId: BankName,
-    password?: string
-  ) => Promise<{ success: boolean; error?: string }>;
+    name?: string
+  ) => Promise<{ success: boolean; message?: string; error?: string }>;
+  checkEmail: (
+    email: string,
+    bankId: BankName
+  ) => Promise<{ exists: boolean; message?: string }>;
   logout: () => void;
   refreshBalance: () => Promise<void>;
   selectBank: (bank: BankName, bankUserId?: string) => void;
@@ -49,9 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetchUserDetails(user.bank_name, user.id);
       if (res.data && res.data.success) {
-        const updated = {
+        const updated: UserAccount = {
           ...user,
-          balance: res.data.balance,
+          balance: res.data.balance ?? user.balance,
           name: res.data.account_holder_name || user.name,
         };
         setUser(updated);
@@ -62,103 +89,146 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string = "SecurePass123!") => {
-    setIsLoading(true);
+  const checkEmail = async (email: string, bankId: BankName) => {
     try {
-      const res = await apiRequest<{
-        access_token: string;
-        message: string;
-        success: boolean;
-      }>("/auth/login", {
+      const res = await apiRequest<{ success: boolean; exists: boolean; message: string }>(
+        "/auth/check-email",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, bank_id: bankId.toLowerCase() }),
+        }
+      );
+      if (res.data) {
+        return { exists: !!res.data.exists, message: res.data.message };
+      }
+      return { exists: false };
+    } catch (e) {
+      return { exists: false };
+    }
+  };
+
+  const login = async (payload: CustomLoginPayload) => {
+    try {
+      const cleanName = payload.account_holder_name.trim().toLowerCase();
+      const cleanEmail = payload.email.trim().toLowerCase();
+
+      const res = await apiRequest<AuthServerResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          account_holder_name: cleanName,
+          email: cleanEmail,
+          bank_id: payload.bank_id.toLowerCase(),
+          password: payload.password || "SecurePass123!",
+        }),
       });
 
-      if (res.error || !res.data?.access_token) {
-        setIsLoading(false);
-        return { success: false, error: res.error || "Login failed" };
+      if (res.error || !res.data) {
+        return { success: false, error: res.error || "Login request failed" };
       }
 
-      const accessToken = res.data.access_token;
-      setToken(accessToken);
-      localStorage.setItem("nautilus_token", accessToken);
-
-      // Default user session
-      const newUser: UserAccount = {
-        id: "1",
-        username: email.split("@")[0],
-        name: email.split("@")[0].toUpperCase(),
-        email: email,
-        role: "user",
-        balance: 1000,
-        bank_name: "CPB",
+      return {
+        success: true,
+        requires_otp: res.data.requires_otp ?? true,
+        message: res.data.message,
       };
-
-      setUser(newUser);
-      localStorage.setItem("nautilus_user", JSON.stringify(newUser));
-      setIsLoading(false);
-      return { success: true };
     } catch (err: unknown) {
-      setIsLoading(false);
       const msg = err instanceof Error ? err.message : "Login failed";
       return { success: false, error: msg };
     }
   };
 
-  const signup = async (
-    name: string,
-    email: string,
-    bankId: BankName,
-    password: string = "SecurePass123!"
-  ) => {
-    setIsLoading(true);
+  const signup = async (payload: CustomSignupPayload) => {
     try {
-      const res = await apiRequest<{
-        access_token?: string;
-        message?: string;
-        success?: boolean;
-        bank_user_id?: number;
-        bank_id?: string;
-        account_holder_name?: string;
-        balance?: number;
-      }>("/auth/signup", {
+      const rawName = payload.account_holder_name || payload.full_name || "";
+      const cleanName = rawName.trim().toLowerCase();
+      const cleanEmail = payload.email.trim().toLowerCase();
+
+      const res = await apiRequest<AuthServerResponse>("/auth/signup", {
         method: "POST",
         body: JSON.stringify({
-          account_holder_name: name,
-          bank_id: bankId.toLowerCase(),
-          email,
-          password,
+          account_holder_name: cleanName,
+          email: cleanEmail,
+          bank_id: payload.bank_id.toLowerCase(),
+          password: payload.password || "SecurePass123!",
         }),
       });
 
       if (res.error || !res.data) {
-        setIsLoading(false);
-        return { success: false, error: res.error || "Signup failed" };
+        return { success: false, error: res.error || "Signup request failed" };
       }
 
-      const assignedBankUserId = String(res.data.bank_user_id || 1);
-      const accessToken = res.data.access_token || `session_${bankId.toLowerCase()}_${assignedBankUserId}`;
-      
+      return {
+        success: true,
+        requires_otp: res.data.requires_otp ?? true,
+        message: res.data.message,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Signup failed";
+      return { success: false, error: msg };
+    }
+  };
+
+  const verifyOtp = async (payload: OTPVerifyPayload) => {
+    try {
+      const cleanEmail = payload.email.trim().toLowerCase();
+      const res = await apiRequest<AuthServerResponse>("/auth/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: cleanEmail,
+          bank_id: payload.bank_id.toLowerCase(),
+          otp_code: payload.otp_code.trim(),
+          flow_type: payload.flow_type || "login",
+          account_holder_name: payload.account_holder_name?.trim().toLowerCase(),
+        }),
+      });
+
+      if (res.error || !res.data || typeof res.data.access_token !== "string") {
+        return { success: false, error: res.error || "OTP verification failed" };
+      }
+
+      const data = res.data;
+      const accessToken = (data.access_token || "") as string;
       setToken(accessToken);
       localStorage.setItem("nautilus_token", accessToken);
 
+      const assignedBankUserId = String(data.bank_user_id || 1);
       const newUser: UserAccount = {
         id: assignedBankUserId,
-        username: email.split("@")[0],
-        name: res.data.account_holder_name || name,
-        email: email,
+        username: cleanEmail.split("@")[0],
+        name: (data.account_holder_name || payload.account_holder_name || cleanEmail.split("@")[0]).toLowerCase(),
+        email: cleanEmail,
         role: "user",
-        balance: res.data.balance ?? 1000,
-        bank_name: bankId,
+        balance: data.balance ?? 1000,
+        bank_name: payload.bank_id,
       };
 
       setUser(newUser);
       localStorage.setItem("nautilus_user", JSON.stringify(newUser));
-      setIsLoading(false);
-      return { success: true };
+
+      return { success: true, message: data.message };
     } catch (err: unknown) {
-      setIsLoading(false);
-      const msg = err instanceof Error ? err.message : "Signup failed";
+      const msg = err instanceof Error ? err.message : "OTP verification failed";
+      return { success: false, error: msg };
+    }
+  };
+
+  const resendOtp = async (email: string, bankId: BankName, name?: string) => {
+    try {
+      const res = await apiRequest<AuthServerResponse>("/auth/resend-otp", {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          bank_id: bankId.toLowerCase(),
+          account_holder_name: name?.trim().toLowerCase(),
+        }),
+      });
+
+      if (res.error || !res.data) {
+        return { success: false, error: res.error || "Resend OTP failed" };
+      }
+      return { success: true, message: res.data.message };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to resend OTP";
       return { success: false, error: msg };
     }
   };
@@ -190,6 +260,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         signup,
+        verifyOtp,
+        resendOtp,
+        checkEmail,
         logout,
         refreshBalance,
         selectBank,

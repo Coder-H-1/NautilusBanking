@@ -18,17 +18,38 @@ export interface AuthState {
   isLoading: boolean;
 }
 
-export interface LoginPayload {
-  username: string;
+export interface CustomLoginPayload {
+  account_holder_name: string;
+  email: string;
+  bank_id: BankName;
   password?: string;
-  role?: string;
 }
 
-export interface RegisterPayload {
-  username: string;
-  password?: string;
-  name: string;
+export interface CustomSignupPayload {
+  account_holder_name: string;
+  full_name?: string;
   email: string;
-  bank_name: BankName;
-  initial_balance?: number;
+  bank_id: BankName;
+  password?: string;
+  policy_accepted?: boolean;
+}
+
+export interface OTPVerifyPayload {
+  email: string;
+  bank_id: BankName;
+  otp_code: string;
+  account_holder_name?: string;
+  flow_type?: "login" | "signup";
+}
+
+export interface AuthServerResponse {
+  success: boolean;
+  message: string;
+  requires_otp?: boolean;
+  access_token?: string;
+  bank_user_id?: number;
+  bank_id?: string;
+  account_holder_name?: string;
+  email?: string;
+  balance?: number;
 }

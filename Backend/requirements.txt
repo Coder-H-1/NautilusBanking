@@ -7,3 +7,5 @@ qrcode[pil]
 python-dotenv
 httpx
 slowapi
+pyjwt
+passlib[bcrypt]
