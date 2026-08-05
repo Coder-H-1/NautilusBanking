@@ -25,8 +25,10 @@ def get_supabase_client() -> Optional[Client]:
     ).strip()
 
     key = (
-        os.getenv("SUPABASE_SERVICE_KEY")
+        os.getenv("SUPABASE_SECRET_KEY")
+        or os.getenv("SUPABASE_SERVICE_KEY")
         or os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        or os.getenv("SUPABASE_PUBLISHABLE_KEY")
         or os.getenv("SUPABASE_KEY")
         or os.getenv("SUPABASE_ANON_KEY")
         or os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")

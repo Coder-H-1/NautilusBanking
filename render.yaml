@@ -8,6 +8,12 @@ services:
     envVars:
       - key: SUPABASE_URL
         sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
       - key: PRIVATE_KEY
