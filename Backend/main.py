@@ -19,6 +19,7 @@ from routers.bank_router import router as bank_router
 from routers.acpi_router import router as acpi_router
 from routers.qr_router import router as qr_router
 from routers.auth_router import router as auth_router
+from routers.email_router import router as email_router
 
 # Load env vars
 load_dotenv()
@@ -146,3 +147,4 @@ app.include_router(auth_router)
 app.include_router(bank_router)
 app.include_router(acpi_router)
 app.include_router(qr_router)
+app.include_router(email_router)
