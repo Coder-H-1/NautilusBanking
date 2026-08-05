@@ -13,8 +13,14 @@ import hmac
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.backends import default_backend
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Load .env from multiple standard locations (Backend, root, Frontend)
+_base_dir = Path(__file__).resolve().parent.parent
+for _env_file in [_base_dir / ".env", _base_dir.parent / ".env", _base_dir.parent / "Frontend" / ".env.local"]:
+    if _env_file.exists():
+        load_dotenv(dotenv_path=_env_file)
 load_dotenv()
 
 
@@ -24,7 +30,7 @@ load_dotenv()
 
 def _load_private_key():
     """Load RSA private key from env var. Called per-use, never cached."""
-    pem_str = os.getenv("PRIVATE_KEY")
+    pem_str = os.getenv("PRIVATE_KEY") or os.getenv("RSA_PRIVATE_KEY")
     if not pem_str:
         raise RuntimeError("PRIVATE_KEY environment variable is not set.")
     # Env vars use \\n for newlines — convert to actual newlines
@@ -34,7 +40,11 @@ def _load_private_key():
 
 def _load_public_key():
     """Load RSA public key from env var. Called per-use, never cached."""
-    pem_str = os.getenv("PUBLIC_KEY")
+    pem_str = (
+        os.getenv("PUBLIC_KEY")
+        or os.getenv("RSA_PUBLIC_KEY")
+        or os.getenv("NEXT_PUBLIC_RSA_PUBLIC_KEY")
+    )
     if not pem_str:
         raise RuntimeError("PUBLIC_KEY environment variable is not set.")
     pem_bytes = pem_str.replace("\\n", "\n").encode("utf-8")
@@ -43,7 +53,7 @@ def _load_public_key():
 
 def _load_hmac_secret() -> bytes:
     """Load HMAC secret from env var. Called per-use, never cached."""
-    secret = os.getenv("HMAC_SECRET")
+    secret = os.getenv("HMAC_SECRET") or os.getenv("NEXT_PUBLIC_HMAC_SECRET")
     if not secret:
         raise RuntimeError("HMAC_SECRET environment variable is not set.")
     return secret.encode("utf-8")

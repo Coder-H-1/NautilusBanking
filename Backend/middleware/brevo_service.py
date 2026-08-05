@@ -28,6 +28,14 @@ def get_email_api_key() -> str:
 
 def get_sender_email(is_resend: bool = False) -> str:
     """Retrieve verified sender email for provider."""
+    if is_resend:
+        return (
+            os.getenv("RESEND_SENDER_EMAIL")
+            or os.getenv("BREVO_SENDER_EMAIL")
+            or os.getenv("SMTP_EMAIL")
+            or os.getenv("SENDER_EMAIL")
+            or ""
+        ).strip()
     return (
         os.getenv("BREVO_SENDER_EMAIL")
         or os.getenv("brevo_sender_email")

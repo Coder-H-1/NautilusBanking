@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({ success: true, message: "Email sent successfully via Resend." });
     } else {
-      const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.brevo_sender_email || process.env.SMTP_EMAIL || process.env.SENDER_EMAIL || "";
+      const senderEmail = process.env.BREVO_SENDER_EMAIL || "nautilus-project-00001@gmail.com";
       const payload = {
         sender: { name: "NAUTILUS Banking System", email: senderEmail },
         to: [{ email: to_email, name: name }],
