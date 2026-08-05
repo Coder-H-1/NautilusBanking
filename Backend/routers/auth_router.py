@@ -1,7 +1,7 @@
 """
 NAUTILUS Banking System — Custom Auth Router
 Full custom authentication with account verification, Brevo OTP dispatch,
-rate limiting, IP blocking, and JWT session handling (replaces Supabase Auth).
+rate limiting, IP blocking, and JWT session handling backed by Supabase DB.
 """
 
 import hashlib
@@ -38,24 +38,6 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(f"{password}:{salt}".encode("utf-8")).hexdigest()
 
 
-# Resilient in-memory user registry for fast lookups and backup storage
-_in_memory_users: Dict[str, Dict[str, Dict[str, Any]]] = {
-    "cpb": {
-        "alice@example.com": {"bank_user_id": 1, "account_holder_name": "alice", "email": "alice@example.com", "password_hash": hash_password("password123"), "balance": 50000},
-        "bob@example.com": {"bank_user_id": 2, "account_holder_name": "bob", "email": "bob@example.com", "password_hash": hash_password("password123"), "balance": 30000},
-        "charlie@example.com": {"bank_user_id": 3, "account_holder_name": "charlie", "email": "charlie@example.com", "password_hash": hash_password("password123"), "balance": 10000},
-    },
-    "eb": {
-        "diana@example.com": {"bank_user_id": 1, "account_holder_name": "diana", "email": "diana@example.com", "password_hash": hash_password("password123"), "balance": 75000},
-        "eve@example.com": {"bank_user_id": 2, "account_holder_name": "eve", "email": "eve@example.com", "password_hash": hash_password("password123"), "balance": 20000},
-    },
-    "sb": {
-        "frank@example.com": {"bank_user_id": 1, "account_holder_name": "frank", "email": "frank@example.com", "password_hash": hash_password("password123"), "balance": 100000},
-        "grace@example.com": {"bank_user_id": 2, "account_holder_name": "grace", "email": "grace@example.com", "password_hash": hash_password("password123"), "balance": 45000},
-    },
-}
-
-
 @router.post("/check-email", response_model=CheckEmailResponse)
 async def check_email_exists(req: CheckEmailRequest, request: Request):
     """
@@ -70,33 +52,31 @@ async def check_email_exists(req: CheckEmailRequest, request: Request):
     table_name = f"{bank_id}_database"
     clean_email = req.email.strip().lower()
 
-    # 1. Check in-memory users first
-    if clean_email in _in_memory_users.get(bank_id, {}):
-        return CheckEmailResponse(
-            success=True,
-            exists=True,
-            message=f"User with this email already exists in {req.bank_id.upper()}. Please login."
+    supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(
+            status_code=503,
+            detail="Database service unavailable. Please try again shortly."
         )
 
-    # 2. Check Supabase DB
-    supabase = get_supabase_client()
-    if supabase:
-        try:
-            res = (
-                supabase.table(table_name)
-                .select("bank_user_id, account_holder_name")
-                .eq("email", clean_email)
-                .limit(1)
-                .execute()
+    try:
+        res = (
+            supabase.table(table_name)
+            .select("bank_user_id, account_holder_name")
+            .eq("email", clean_email)
+            .limit(1)
+            .execute()
+        )
+        if res.data and len(res.data) > 0:
+            return CheckEmailResponse(
+                success=True,
+                exists=True,
+                message=f"User with this email already exists in {req.bank_id.upper()}. Please login."
             )
-            if res.data and len(res.data) > 0:
-                return CheckEmailResponse(
-                    success=True,
-                    exists=True,
-                    message=f"User with this email already exists in {req.bank_id.upper()}. Please login."
-                )
-        except Exception as e:
-            print(f"[CHECK EMAIL DB WARNING]: {e}")
+    except Exception as e:
+        print(f"[CHECK EMAIL DB ERROR]: {e}")
+        # Table might not have email column yet; fallback gracefully
+        pass
 
     return CheckEmailResponse(
         success=True,
@@ -120,81 +100,75 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
     clean_name = req.account_holder_name.strip().lower()
     clean_email = req.email.strip().lower()
     pwd_hash = hash_password(req.password)
-
-    # Check if email is already in memory
-    if clean_email in _in_memory_users.get(bank_id, {}):
-        raise HTTPException(
-            status_code=400,
-            detail=f"User already exists in {req.bank_id.upper()}. Please login instead."
-        )
+    initial_balance = 1000
 
     supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(
+            status_code=503,
+            detail="Database service unavailable. Please check database configuration."
+        )
+
     bank_user_id = None
-    balance = 1000
+    balance = initial_balance
 
-    if supabase:
-        try:
-            # Check if email already registered in DB
-            existing = (
-                supabase.table(table_name)
-                .select("bank_user_id")
-                .eq("email", clean_email)
-                .limit(1)
-                .execute()
+    try:
+        # Check if email is already registered in DB
+        existing = (
+            supabase.table(table_name)
+            .select("bank_user_id")
+            .eq("email", clean_email)
+            .limit(1)
+            .execute()
+        )
+        if existing.data and len(existing.data) > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"User already exists in {req.bank_id.upper()}. Please login instead."
             )
-            if existing.data and len(existing.data) > 0:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"User already exists in {req.bank_id.upper()}. Please login instead."
-                )
 
-            # Insert new account with initial balance of 1000
-            insert_res = (
+        # Insert new account with initial balance
+        insert_res = (
+            supabase.table(table_name)
+            .insert({
+                "account_holder_name": clean_name,
+                "email": clean_email,
+                "password_hash": pwd_hash,
+                "balance": balance,
+            })
+            .execute()
+        )
+        if insert_res.data and len(insert_res.data) > 0:
+            bank_user_id = insert_res.data[0].get("bank_user_id")
+            balance = insert_res.data[0].get("balance", initial_balance)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        print(f"[SIGNUP DB INSERT ERROR]: {e}")
+        # Try fallback insert if email/password_hash columns are pending migration
+        try:
+            fallback_res = (
                 supabase.table(table_name)
                 .insert({
                     "account_holder_name": clean_name,
-                    "email": clean_email,
-                    "password_hash": pwd_hash,
-                    "balance": balance,
+                    "balance": initial_balance,
                 })
                 .execute()
             )
-            if insert_res.data and len(insert_res.data) > 0:
-                bank_user_id = insert_res.data[0].get("bank_user_id")
-                balance = insert_res.data[0].get("balance", 1000)
-        except HTTPException as he:
-            raise he
-        except Exception as e:
-            print(f"[SIGNUP DB INSERT WARNING]: {e}")
-            # Try fallback insertion with just name and balance if schema not migrated
-            try:
-                fallback_res = (
-                    supabase.table(table_name)
-                    .insert({
-                        "account_holder_name": clean_name,
-                        "balance": balance,
-                    })
-                    .execute()
-                )
-                if fallback_res.data and len(fallback_res.data) > 0:
-                    bank_user_id = fallback_res.data[0].get("bank_user_id")
-            except Exception as e2:
-                print(f"[SIGNUP DB FALLBACK WARNING]: {e2}")
+            if fallback_res.data and len(fallback_res.data) > 0:
+                bank_user_id = fallback_res.data[0].get("bank_user_id")
+        except Exception as e2:
+            print(f"[SIGNUP DB FALLBACK ERROR]: {e2}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create account in {req.bank_id.upper()} database: {str(e)}"
+            )
 
-    # If DB not available or failed to assign ID, generate a unique ID
     if bank_user_id is None:
-        bank_user_id = len(_in_memory_users.get(bank_id, {})) + 100
-
-    # Save in memory store
-    if bank_id not in _in_memory_users:
-        _in_memory_users[bank_id] = {}
-    _in_memory_users[bank_id][clean_email] = {
-        "bank_user_id": bank_user_id,
-        "account_holder_name": clean_name,
-        "email": clean_email,
-        "password_hash": pwd_hash,
-        "balance": balance,
-    }
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve generated account ID from database."
+        )
 
     # Generate OTP
     ok, otp_code, msg = generate_otp(clean_email, req.bank_id, ip)
@@ -235,46 +209,42 @@ async def custom_login(req: CustomLoginRequest, request: Request):
     clean_email = req.email.strip().lower()
     pwd_hash = hash_password(req.password)
 
-    user_row = None
     supabase = get_supabase_client()
+    if not supabase:
+        raise HTTPException(
+            status_code=503,
+            detail="Database service unavailable. Please try again shortly."
+        )
 
-    if supabase:
-        try:
-            # 1. Search by email
-            res = (
+    user_row = None
+    try:
+        # 1. Search by email
+        res = (
+            supabase.table(table_name)
+            .select("*")
+            .eq("email", clean_email)
+            .limit(1)
+            .execute()
+        )
+        if res.data and len(res.data) > 0:
+            user_row = res.data[0]
+        else:
+            # 2. Search by account name
+            res_name = (
                 supabase.table(table_name)
                 .select("*")
-                .eq("email", clean_email)
+                .ilike("account_holder_name", clean_name)
                 .limit(1)
                 .execute()
             )
-            if res.data and len(res.data) > 0:
-                user_row = res.data[0]
-            else:
-                # 2. Search by account name
-                res_name = (
-                    supabase.table(table_name)
-                    .select("*")
-                    .ilike("account_holder_name", clean_name)
-                    .limit(1)
-                    .execute()
-                )
-                if res_name.data and len(res_name.data) > 0:
-                    user_row = res_name.data[0]
-        except Exception as e:
-            print(f"[LOGIN DB QUERY WARNING]: {e}")
-
-    # Fallback to in-memory store
-    if not user_row:
-        user_row = _in_memory_users.get(bank_id, {}).get(clean_email)
-
-    if not user_row:
-        # Check if user matches any in-memory name
-        for mem_email, mem_user in _in_memory_users.get(bank_id, {}).items():
-            if mem_user.get("account_holder_name", "").strip().lower() == clean_name:
-                user_row = mem_user
-                clean_email = mem_email
-                break
+            if res_name.data and len(res_name.data) > 0:
+                user_row = res_name.data[0]
+    except Exception as e:
+        print(f"[LOGIN DB QUERY ERROR]: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database query failed: {str(e)}"
+        )
 
     if not user_row:
         raise HTTPException(
@@ -334,35 +304,52 @@ async def verify_otp_endpoint(req: OTPVerifyRequest, request: Request):
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
 
-    # Fetch user row from DB or in-memory
+    # Fetch user row from DB
     supabase = get_supabase_client()
     table_name = f"{bank_id}_database"
     user_row = None
 
-    if supabase:
-        try:
-            res = (
-                supabase.table(table_name)
-                .select("*")
-                .eq("email", clean_email)
-                .limit(1)
-                .execute()
-            )
-            if res.data and len(res.data) > 0:
-                user_row = res.data[0]
-        except Exception as e:
-            print(f"[VERIFY OTP DB LOOKUP WARNING]: {e}")
+    if not supabase:
+        raise HTTPException(
+            status_code=503,
+            detail="Database service unavailable."
+        )
+
+    try:
+        res = (
+            supabase.table(table_name)
+            .select("*")
+            .eq("email", clean_email)
+            .limit(1)
+            .execute()
+        )
+        if res.data and len(res.data) > 0:
+            user_row = res.data[0]
+        else:
+            # Fallback by name if email not attached
+            if req.account_holder_name:
+                res_name = (
+                    supabase.table(table_name)
+                    .select("*")
+                    .ilike("account_holder_name", req.account_holder_name.strip().lower())
+                    .limit(1)
+                    .execute()
+                )
+                if res_name.data and len(res_name.data) > 0:
+                    user_row = res_name.data[0]
+    except Exception as e:
+        print(f"[VERIFY OTP DB LOOKUP ERROR]: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query failed: {str(e)}")
 
     if not user_row:
-        user_row = _in_memory_users.get(bank_id, {}).get(clean_email)
+        raise HTTPException(
+            status_code=404,
+            detail=f"Account not found in bank {bank_id.upper()}."
+        )
 
-    bank_user_id = user_row.get("bank_user_id", 1) if user_row else 1
-    account_name = (
-        user_row.get("account_holder_name")
-        if user_row
-        else req.account_holder_name or "Account Holder"
-    )
-    balance = user_row.get("balance", 1000) if user_row else 1000
+    bank_user_id = user_row.get("bank_user_id")
+    account_name = user_row.get("account_holder_name") or req.account_holder_name or "Account Holder"
+    balance = user_row.get("balance", 0)
 
     # Issue JWT session token
     token = create_session_jwt(bank_id, bank_user_id, account_name, clean_email)
