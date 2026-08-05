@@ -17,7 +17,7 @@ JWT_ALGORITHM = "HS256"
 # In-memory backup cache in case DB has latency or for fast rate limiting
 _ip_request_history: dict[str, list[float]] = {}
 _in_memory_ip_blocks: dict[str, float] = {}  # ip -> unblock_timestamp
-_in_memory_otps: dict[str, dict] = {}  # f"{email}:{bank_id}" -> {code, expires_at, attempts, created_at}
+_in_memory_otps: dict[str, dict] = {}  # f"{email}:{bank_id}" -> {code, expires_at, attempts, created_at, db_id}
 
 
 def get_client_ip(request) -> str:
@@ -46,23 +46,24 @@ def is_ip_blocked(ip: str) -> Tuple[bool, Optional[str], Optional[int]]:
     # Check database
     try:
         sb = get_supabase_client()
-        res = (
-            sb.table("ip_blocks")
-            .select("*")
-            .eq("ip_address", ip)
-            .gt("blocked_until", datetime.utcnow().isoformat())
-            .order("blocked_until", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if res.data and len(res.data) > 0:
-            block_data = res.data[0]
-            blocked_until = datetime.fromisoformat(block_data["blocked_until"].replace("Z", "+00:00"))
-            remaining = max(1, int((blocked_until.timestamp() - datetime.utcnow().timestamp())))
-            _in_memory_ip_blocks[ip] = now + remaining
-            return True, block_data.get("reason", "IP blocked"), remaining
+        if sb:
+            res = (
+                sb.table("ip_blocks")
+                .select("*")
+                .eq("ip_address", ip)
+                .gt("blocked_until", datetime.utcnow().isoformat())
+                .order("blocked_until", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if res.data and len(res.data) > 0:
+                block_data = res.data[0]
+                blocked_until = datetime.fromisoformat(block_data["blocked_until"].replace("Z", "+00:00"))
+                remaining = max(1, int((blocked_until.timestamp() - datetime.utcnow().timestamp())))
+                _in_memory_ip_blocks[ip] = now + remaining
+                return True, block_data.get("reason", "IP blocked"), remaining
     except Exception as e:
-        print("[IP BLOCK DB CHECK ERROR]", e)
+        print(f"[IP BLOCK DB CHECK WARNING]: {e}")
 
     return False, None, None
 
@@ -75,16 +76,17 @@ def block_ip(ip: str, minutes: int, reason: str):
 
     try:
         sb = get_supabase_client()
-        sb.table("ip_blocks").insert({
-            "ip_address": ip,
-            "blocked_until": blocked_until_iso,
-            "reason": reason
-        }).execute()
+        if sb:
+            sb.table("ip_blocks").insert({
+                "ip_address": ip,
+                "blocked_until": blocked_until_iso,
+                "reason": reason
+            }).execute()
     except Exception as e:
-        print("[IP BLOCK INSERT ERROR]", e)
+        print(f"[IP BLOCK INSERT WARNING]: {e}")
 
 
-def check_rate_limit(ip: str, max_requests: int = 10, window_seconds: int = 60, block_minutes: int = 3) -> Tuple[bool, Optional[str]]:
+def check_rate_limit(ip: str, max_requests: int = 25, window_seconds: int = 60, block_minutes: int = 3) -> Tuple[bool, Optional[str]]:
     """
     Rate limiting: If > max_requests in window_seconds, block IP for block_minutes.
     Returns (allowed, error_message).
@@ -143,20 +145,25 @@ def generate_otp(email: str, bank_id: str, ip: str) -> Tuple[bool, str, str]:
 
     try:
         sb = get_supabase_client()
-        # Invalidate old OTPs for this email+bank
-        sb.table("otp_codes").update({"is_verified": True}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
-        # Insert new
-        sb.table("otp_codes").insert({
-            "email": email.strip().lower(),
-            "bank_id": bank_id.strip().lower(),
-            "otp_code": otp_code,
-            "attempts": 0,
-            "is_verified": False,
-            "ip_address": ip,
-            "expires_at": expires_at_iso
-        }).execute()
+        if sb:
+            # Invalidate old OTPs for this email+bank
+            try:
+                sb.table("otp_codes").update({"is_verified": True}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
+            except Exception:
+                pass
+
+            # Insert new
+            sb.table("otp_codes").insert({
+                "email": email.strip().lower(),
+                "bank_id": bank_id.strip().lower(),
+                "otp_code": otp_code,
+                "attempts": 0,
+                "is_verified": False,
+                "ip_address": ip,
+                "expires_at": expires_at_iso
+            }).execute()
     except Exception as e:
-        print("[OTP DB INSERT ERROR]", e)
+        print(f"[OTP DB INSERT WARNING]: {e}")
 
     return True, otp_code, "OTP generated successfully"
 
@@ -180,29 +187,30 @@ def verify_otp_code(email: str, bank_id: str, input_code: str, ip: str) -> Tuple
     if not otp_data:
         try:
             sb = get_supabase_client()
-            res = (
-                sb.table("otp_codes")
-                .select("*")
-                .eq("email", email.strip().lower())
-                .eq("bank_id", bank_id.strip().lower())
-                .eq("is_verified", False)
-                .order("created_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            if res.data and len(res.data) > 0:
-                row = res.data[0]
-                exp_dt = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
-                otp_data = {
-                    "code": row["otp_code"],
-                    "expires_at": exp_dt.timestamp(),
-                    "attempts": row.get("attempts", 0),
-                    "created_at": datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")).timestamp(),
-                    "db_id": row["id"]
-                }
-                _in_memory_otps[cache_key] = otp_data
+            if sb:
+                res = (
+                    sb.table("otp_codes")
+                    .select("*")
+                    .eq("email", email.strip().lower())
+                    .eq("bank_id", bank_id.strip().lower())
+                    .eq("is_verified", False)
+                    .order("created_at", desc=True)
+                    .limit(1)
+                    .execute()
+                )
+                if res.data and len(res.data) > 0:
+                    row = res.data[0]
+                    exp_dt = datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00"))
+                    otp_data = {
+                        "code": row["otp_code"],
+                        "expires_at": exp_dt.timestamp(),
+                        "attempts": row.get("attempts", 0),
+                        "created_at": datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")).timestamp(),
+                        "db_id": row["id"]
+                    }
+                    _in_memory_otps[cache_key] = otp_data
         except Exception as e:
-            print("[OTP DB LOOKUP ERROR]", e)
+            print(f"[OTP DB LOOKUP WARNING]: {e}")
 
     if not otp_data:
         return False, "No active OTP found. Please request a new code.", 0
@@ -218,12 +226,13 @@ def verify_otp_code(email: str, bank_id: str, input_code: str, ip: str) -> Tuple
         _in_memory_otps.pop(cache_key, None)
         try:
             sb = get_supabase_client()
-            if "db_id" in otp_data:
-                sb.table("otp_codes").update({"is_verified": True}).eq("id", otp_data["db_id"]).execute()
-            else:
-                sb.table("otp_codes").update({"is_verified": True}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
+            if sb:
+                if "db_id" in otp_data:
+                    sb.table("otp_codes").update({"is_verified": True}).eq("id", otp_data["db_id"]).execute()
+                else:
+                    sb.table("otp_codes").update({"is_verified": True}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
         except Exception as e:
-            print("[OTP DB VERIFY UPDATE ERROR]", e)
+            print(f"[OTP DB VERIFY UPDATE WARNING]: {e}")
         return True, "Verification successful", 3
 
     # Incorrect code -> increment attempts
@@ -233,9 +242,10 @@ def verify_otp_code(email: str, bank_id: str, input_code: str, ip: str) -> Tuple
 
     try:
         sb = get_supabase_client()
-        sb.table("otp_codes").update({"attempts": attempts}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
+        if sb:
+            sb.table("otp_codes").update({"attempts": attempts}).eq("email", email.strip().lower()).eq("bank_id", bank_id.strip().lower()).execute()
     except Exception as e:
-        print("[OTP ATTEMPTS UPDATE ERROR]", e)
+        print(f"[OTP ATTEMPTS UPDATE WARNING]: {e}")
 
     if remaining_tries <= 0:
         _in_memory_otps.pop(cache_key, None)

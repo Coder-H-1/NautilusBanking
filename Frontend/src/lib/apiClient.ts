@@ -43,15 +43,25 @@ export async function apiRequest<T = unknown>(
     const body = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
-      const errorMsg =
-        typeof body === "object" && body !== null && "detail" in body
-          ? body.detail
-          : typeof body === "string"
-          ? body
-          : `Request failed with status ${response.status}`;
+      let errorMsg = `Request failed with status ${response.status}`;
+      if (typeof body === "object" && body !== null) {
+        if ("detail" in body && typeof (body as any).detail === "string") {
+          errorMsg = (body as any).detail;
+        } else if ("error" in body && typeof (body as any).error === "string") {
+          errorMsg = (body as any).error;
+        } else if ("message" in body && typeof (body as any).message === "string") {
+          errorMsg = (body as any).message;
+        } else if ("detail" in body && Array.isArray((body as any).detail)) {
+          errorMsg = (body as any).detail.map((d: any) => d.msg || JSON.stringify(d)).join(", ");
+        } else {
+          errorMsg = JSON.stringify(body);
+        }
+      } else if (typeof body === "string" && body.length > 0) {
+        errorMsg = body;
+      }
 
       return {
-        error: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+        error: errorMsg,
         status: response.status,
       };
     }
@@ -62,8 +72,11 @@ export async function apiRequest<T = unknown>(
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Network error";
+    console.warn(`[API Request Error] ${url}:`, err);
     return {
-      error: message,
+      error: message.includes("Failed to fetch")
+        ? "Unable to reach server. The backend may be booting up (cold start) or experiencing connectivity issues. Please try again in a few seconds."
+        : message,
       status: 0,
     };
   }
