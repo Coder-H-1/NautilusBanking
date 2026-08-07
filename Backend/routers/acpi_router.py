@@ -28,13 +28,17 @@ async def process_acpi_transfer(
             receiver_bank=req.receiver_bank_id,
             receiver_user_id=req.receiver_bank_user_id,
             amount=req.amount,
+            sender_name=req.sender_name,
+            receiver_name=req.receiver_name,
         )
 
         return ACPITransferResponse(
             success=True,
             transaction_id=result.get("transaction_id"),
-            status=result.get("status"),
+            status=result.get("status", "success"),
             message=result.get("message", "ACPI settlement successful."),
+            sender_new_balance=result.get("sender_new_balance"),
+            receiver_new_balance=result.get("receiver_new_balance"),
         )
     except Exception as e:
         raise HTTPException(

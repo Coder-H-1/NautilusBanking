@@ -3,7 +3,7 @@ ACPI (All Connected Payments Interface) Engine
 Orchestrates inter-bank transactions via atomic double-ledger operations in Supabase.
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from db.client import get_supabase_client
 from bank.bank import Banks
 
@@ -42,50 +42,45 @@ class ACPITransactionEngine:
         receiver_bank: str,
         receiver_user_id: int,
         amount: int,
+        sender_name: Optional[str] = None,
+        receiver_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Executes atomic double-ledger transfer by invoking the Supabase RPC function 'transfer_money'.
-        Both debiting sender and crediting receiver occur inside a single ACID database transaction.
+        ACPI acts as a medium of connection between banks.
+        1. Pre-validates sender and receiver accounts across banks.
+        2. Dispatches inter-bank transfer request to receiver/bank ledger via bank execution endpoint logic.
+        3. Returns transaction ID and success status to sender's bank.
         """
+        from bank.bank import execute_bank_transfer_request
+
         # Step 1: Pre-validation of both accounts
-        self.validate_accounts(
+        account_details = self.validate_accounts(
             sender_bank=sender_bank,
             sender_user_id=sender_user_id,
             receiver_bank=receiver_bank,
             receiver_user_id=receiver_user_id,
         )
 
-        # Step 2: Invoke Supabase RPC transfer_money
-        params = {
-            "p_sender_bank": sender_bank.lower(),
-            "p_sender_user_id": sender_user_id,
-            "p_receiver_bank": receiver_bank.lower(),
-            "p_receiver_user_id": receiver_user_id,
-            "p_amount": amount,
-        }
+        resolved_sender_name = sender_name or account_details["sender"].get("account_holder_name", "")
+        resolved_receiver_name = receiver_name or account_details["receiver"].get("account_holder_name", "")
 
-        rpc_res = self.supabase.rpc("transfer_money", params).execute()
-        txn_id = rpc_res.data
-
-        # Step 3: Fetch transaction record to confirm status
-        txn_record = (
-            self.supabase.table("transactions")
-            .select("*")
-            .eq("id", txn_id)
-            .execute()
+        # Step 2: Request bank to execute the transfer and update amounts in database
+        bank_result = execute_bank_transfer_request(
+            sender_name=resolved_sender_name,
+            sender_bank_id=sender_bank,
+            sender_bank_user_id=sender_user_id,
+            amount=amount,
+            receiver_name=resolved_receiver_name,
+            receiver_bank_id=receiver_bank,
+            receiver_bank_user_id=receiver_user_id,
         )
-
-        if not txn_record.data:
-            raise RuntimeError(f"Transaction ID {txn_id} not recorded in ledger.")
-
-        record = txn_record.data[0]
-        if record.get("status") != "success":
-            reason = record.get("failure_reason", "Transaction failed.")
-            raise ValueError(f"ACPI transfer rejected: {reason}")
 
         return {
             "success": True,
-            "transaction_id": txn_id,
-            "status": "success",
-            "message": "Double-ledger transfer settled successfully.",
+            "transaction_id": bank_result.get("transaction_id"),
+            "status": bank_result.get("status", "success"),
+            "message": "ACPI inter-bank transfer settled successfully.",
+            "sender_new_balance": bank_result.get("sender_new_balance"),
+            "receiver_new_balance": bank_result.get("receiver_new_balance"),
         }
+

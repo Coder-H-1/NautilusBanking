@@ -11,8 +11,10 @@ from models.schemas import (
     TransferResponse,
     ReceiverInfoRequest,
     BankMoneyRequest,
+    BankTransferRequest,
+    BankTransferResponse,
 )
-from bank.bank import bank_list, BankFunctions, Banks
+from bank.bank import bank_list, BankFunctions, Banks, execute_bank_transfer_request
 from middleware.auth import verify_common, verify_protected
 
 router = APIRouter(prefix="/bank", tags=["Bank"])
@@ -22,6 +24,41 @@ router = APIRouter(prefix="/bank", tags=["Bank"])
 async def get_banks():
     """Returns list of all participating banks."""
     return BankListResponse(banks=bank_list())
+
+
+@router.post("/request", response_model=BankTransferResponse)
+async def handle_bank_transfer_request(
+    req: BankTransferRequest,
+    auth_data: dict = Depends(verify_protected),
+):
+    """
+    Protected route:
+    Used by ACPI to instruct participating banks to execute balance updates
+    and record transactions within their respective ledgers.
+    """
+    try:
+        res = execute_bank_transfer_request(
+            sender_name=req.sender_name,
+            sender_bank_id=req.sender_bank_id,
+            sender_bank_user_id=req.sender_bank_user_id,
+            amount=req.amount,
+            receiver_name=req.receiver_name,
+            receiver_bank_id=req.receiver_bank_id,
+            receiver_bank_user_id=req.receiver_bank_user_id,
+        )
+        return BankTransferResponse(
+            success=res["success"],
+            transaction_id=res.get("transaction_id"),
+            status=res.get("status", "success"),
+            message=res.get("message", "Bank transfer request settled."),
+            sender_new_balance=res.get("sender_new_balance"),
+            receiver_new_balance=res.get("receiver_new_balance"),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.post("/req", response_model=BankUserResponse)

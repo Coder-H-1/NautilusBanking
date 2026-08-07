@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Shield, Lock, Server, Scale, Mail } from "lucide-react";
+import { Shield, Lock, Server, Scale, Mail, FileText } from "lucide-react";
 
 export function Footer() {
   return (
@@ -23,22 +23,29 @@ export function Footer() {
               <span>CPB • EB • SB Hubs</span>
             </div>
             <Link
+              href="/terms-of-use"
+              className="flex items-center gap-1.5 text-zinc-900 font-semibold hover:underline"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Terms of Use</span>
+            </Link>
+            <Link
               href="/privacy-policy"
               className="flex items-center gap-1.5 text-zinc-900 font-semibold hover:underline"
             >
               <Scale className="w-3.5 h-3.5" />
-              <span>Privacy & Legal Charter</span>
+              <span>Privacy Policy</span>
             </Link>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 border-t border-zinc-200/60 text-[11px] text-zinc-400">
-          <p>
-            Disclaimer: NAUTILUS is an educational hobby simulation. We are <strong>NOT related to NPCI or UPI</strong>, and do not process real fiat currency.
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 pt-4 border-t border-zinc-200/60 text-[11px] text-zinc-400">
+          <p className="max-w-3xl leading-relaxed">
+            <span className="font-semibold text-zinc-600">Simulated Environment Notice:</span> This is a simulated banking environment created strictly for educational, research, and hobbyist purposes only. This system is <strong>not affiliated with the Reserve Bank of India (RBI), NPCI, UPI, or any real banking institution</strong>. No real fiat currency or legal tender is stored, transferred, or processed.
           </p>
           <a
             href="mailto:nautilus-project-00001@gmail.com"
-            className="flex items-center gap-1 hover:text-zinc-700 transition-colors"
+            className="flex items-center gap-1 hover:text-zinc-700 transition-colors whitespace-nowrap"
           >
             <Mail className="w-3 h-3" />
             <span>nautilus-project-00001@gmail.com</span>

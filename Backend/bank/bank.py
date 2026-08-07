@@ -89,14 +89,16 @@ class BankFunctions:
 
     def call_ACPI(self) -> Dict[str, Any]:
         """
-        Calls ACPI transaction executor to perform the atomic double-ledger transfer.
+        Calls ACPI transaction executor as the medium of connection between banks.
         """
         from ACPI.main import ACPITransactionEngine
 
         acpi = ACPITransactionEngine()
         result = acpi.execute_transfer(
+            sender_name=self.sender_account_holder_name,
             sender_bank=self.sender_bank_id,
             sender_user_id=self.sender_bank_user_id,
+            receiver_name=None,
             receiver_bank=self.receiver_bank_id,
             receiver_user_id=self.receiver_bank_user_id,
             amount=self.amount,
@@ -116,8 +118,8 @@ class BankFunctions:
         """
         Full orchestration of transfer from the Bank side:
         1. Validate sender balance
-        2. Dispatch to ACPI for ACID transfer
-        3. Retrieve updated balance
+        2. Dispatch to ACPI as medium
+        3. Retrieve updated balance & confirm transaction
         """
         self.validate_amount()
         acpi_result = self.call_ACPI()
@@ -128,8 +130,79 @@ class BankFunctions:
             "transaction_id": acpi_result.get("transaction_id"),
             "status": acpi_result.get("status"),
             "sender_new_balance": updated_sender.get("balance"),
-            "message": "Transfer processed successfully.",
+            "message": acpi_result.get("message", "Transfer processed successfully."),
         }
+
+
+def execute_bank_transfer_request(
+    sender_name: str,
+    sender_bank_id: str,
+    sender_bank_user_id: int,
+    amount: int,
+    receiver_bank_id: str,
+    receiver_bank_user_id: int,
+    receiver_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Executes the bank-level money transfer request:
+    1. Receiver bank & Sender bank verify and commit balance updates to their database.
+    2. Records transaction ID and details in transactions table.
+    3. Returns transaction ID and status to ACPI.
+    """
+    supabase = get_supabase_client()
+    s_bank = sender_bank_id.lower()
+    r_bank = receiver_bank_id.lower()
+
+    # Pre-check accounts exist
+    sender_table = f"{s_bank}_database"
+    receiver_table = f"{r_bank}_database"
+
+    s_res = supabase.table(sender_table).select("*").eq("bank_user_id", sender_bank_user_id).execute()
+    if not s_res.data:
+        raise ValueError(f"Sender account not found in {sender_bank_id.upper()}.")
+
+    sender_acc = s_res.data[0]
+    if sender_acc.get("balance", 0) < amount:
+        raise ValueError(f"Insufficient funds in sender account ({sender_bank_id.upper()}).")
+
+    r_res = supabase.table(receiver_table).select("*").eq("bank_user_id", receiver_bank_user_id).execute()
+    if not r_res.data:
+        raise ValueError(f"Receiver account not found in {receiver_bank_id.upper()}.")
+
+    # Atomic execution via Supabase RPC transfer_money
+    params = {
+        "p_sender_bank": s_bank,
+        "p_sender_user_id": sender_bank_user_id,
+        "p_receiver_bank": r_bank,
+        "p_receiver_user_id": receiver_bank_user_id,
+        "p_amount": amount,
+    }
+
+    rpc_res = supabase.rpc("transfer_money", params).execute()
+    txn_id = rpc_res.data
+
+    # Confirm transaction record
+    txn_record = supabase.table("transactions").select("*").eq("id", txn_id).execute()
+    if not txn_record.data:
+        raise RuntimeError(f"Transaction ID {txn_id} not found in ledger.")
+
+    record = txn_record.data[0]
+    if record.get("status") != "success":
+        reason = record.get("failure_reason", "Transfer rejected by bank ledger.")
+        raise ValueError(f"Bank transfer failed: {reason}")
+
+    # Fetch updated balances
+    s_updated = supabase.table(sender_table).select("balance").eq("bank_user_id", sender_bank_user_id).execute()
+    r_updated = supabase.table(receiver_table).select("balance").eq("bank_user_id", receiver_bank_user_id).execute()
+
+    return {
+        "success": True,
+        "transaction_id": txn_id,
+        "status": "success",
+        "message": f"Bank transfer of ${amount} completed successfully.",
+        "sender_new_balance": s_updated.data[0]["balance"] if s_updated.data else None,
+        "receiver_new_balance": r_updated.data[0]["balance"] if r_updated.data else None,
+    }
 
 
 class Banks:

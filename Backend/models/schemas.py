@@ -173,8 +173,29 @@ class TransferResponse(BaseModel):
 
 
 # ============================================
-# ACPI Schemas
+# ACPI & Bank Transfer Schemas
 # ============================================
+
+class BankTransferRequest(BaseModel):
+    """Request payload sent to /bank/request to execute bank-level amount change & transaction recording."""
+    sender_name: str = Field(..., min_length=1, description="Sender account holder name")
+    sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Sender bank ID")
+    sender_bank_user_id: int = Field(..., gt=0, description="Sender bank user ID")
+    amount: int = Field(..., gt=0, description="Amount to transfer")
+    receiver_name: Optional[str] = Field(None, description="Receiver account holder name")
+    receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver bank ID")
+    receiver_bank_user_id: int = Field(..., gt=0, description="Receiver bank user ID")
+
+
+class BankTransferResponse(BaseModel):
+    """Response returned by /bank/request containing transaction confirmation."""
+    success: bool
+    transaction_id: Optional[UUID] = None
+    status: str = "success"
+    message: str
+    sender_new_balance: Optional[int] = None
+    receiver_new_balance: Optional[int] = None
+
 
 class ACPITransferRequest(BaseModel):
     """Request to ACPI to execute a transfer."""
@@ -183,6 +204,8 @@ class ACPITransferRequest(BaseModel):
     receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     receiver_bank_user_id: int = Field(..., gt=0)
     amount: int = Field(..., gt=0)
+    sender_name: Optional[str] = None
+    receiver_name: Optional[str] = None
 
 
 class ACPITransferResponse(BaseModel):
@@ -190,6 +213,7 @@ class ACPITransferResponse(BaseModel):
     success: bool
     transaction_id: Optional[UUID] = None
     message: str
+    status: Optional[str] = "success"
     sender_new_balance: Optional[int] = None
     receiver_new_balance: Optional[int] = None
 
