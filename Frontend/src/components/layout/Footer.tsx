@@ -44,11 +44,11 @@ export function Footer() {
             <span className="font-semibold text-zinc-600">Simulated Environment Notice:</span> This is a simulated banking environment created strictly for educational, research, and hobbyist purposes only. This system is <strong>not affiliated with the Reserve Bank of India (RBI), NPCI, UPI, or any real banking institution</strong>. No real fiat currency or legal tender is stored, transferred, or processed.
           </p>
           <a
-            href="mailto:nautilus-project-00001@gmail.com"
+            href="mailto:nautilus.project.00001@gmail.com"
             className="flex items-center gap-1 hover:text-zinc-700 transition-colors whitespace-nowrap"
           >
             <Mail className="w-3 h-3" />
-            <span>nautilus-project-00001@gmail.com</span>
+            <span>nautilus.project.00001@gmail.com</span>
           </a>
         </div>
       </div>

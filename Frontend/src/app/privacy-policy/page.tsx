@@ -212,8 +212,8 @@ export default function PrivacyPolicyPage() {
               <div>Project: NAUTILUS Inter-Bank Simulation Platform</div>
               <div className="flex items-center gap-2 text-primary font-medium">
                 <Mail className="w-4 h-4" />
-                <a href="mailto:nautilus-project-00001@gmail.com" className="hover:underline">
-                  nautilus-project-00001@gmail.com
+                <a href="mailto:nautilus.project.00001@gmail.com" className="hover:underline">
+                  nautilus.project.00001@gmail.com
                 </a>
               </div>
               <div className="text-muted-foreground">Response SLA: Within 48 business hours</div>

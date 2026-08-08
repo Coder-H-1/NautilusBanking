@@ -43,6 +43,12 @@ export async function apiRequest<T = unknown>(
     const body = isJson ? await response.json() : await response.text();
 
     if (!response.ok) {
+      if (response.status === 401 && typeof window !== "undefined") {
+        localStorage.removeItem("nautilus_token");
+        localStorage.removeItem("nautilus_user");
+        window.dispatchEvent(new CustomEvent("nautilus_session_expired"));
+      }
+
       let errorMsg = `Request failed with status ${response.status}`;
       if (typeof body === "object" && body !== null) {
         if ("detail" in body && typeof (body as any).detail === "string") {

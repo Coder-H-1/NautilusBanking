@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { BankName } from "@/features/auth/types";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import {
   Lock,
   Search,
   UserCheck,
+  LogIn,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { executeTransfer, fetchUserDetails } from "@/features/bank/api";
@@ -22,7 +24,8 @@ import { sanitizeNumber } from "@/features/crypto/sanitizer";
 const BANK_OPTIONS: BankName[] = ["CPB", "EB", "SB"];
 
 export default function TransferPage() {
-  const { user, refreshBalance } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated, refreshBalance } = useAuth();
 
   // Form State
   const [receiverBank, setReceiverBank] = useState<BankName>("EB");
@@ -126,6 +129,12 @@ export default function TransferPage() {
     } else {
       const errMsg = res.error || "Transfer failed.";
       if (
+        errMsg.toLowerCase().includes("session") ||
+        errMsg.toLowerCase().includes("expired") ||
+        errMsg.toLowerCase().includes("token")
+      ) {
+        setError("Your session has expired. Please sign in again to continue.");
+      } else if (
         errMsg.toLowerCase().includes("not found") ||
         errMsg.toLowerCase().includes("no account")
       ) {
@@ -135,6 +144,30 @@ export default function TransferPage() {
       }
     }
   };
+
+  const isSessionExpired = error?.toLowerCase().includes("session") || error?.toLowerCase().includes("expired");
+
+  if (!isAuthenticated && !user) {
+    return (
+      <div className="max-w-md mx-auto space-y-6 pt-12 text-center">
+        <Card className="p-8 shadow-subtle space-y-4">
+          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h2 className="text-xl font-bold text-zinc-900">Session Required</h2>
+          <p className="text-sm text-zinc-600">
+            You must be signed in to an active bank account to initiate fund transfers.
+          </p>
+          <Button
+            onClick={() => router.push("/login")}
+            className="w-full gap-2 mt-4"
+          >
+            <LogIn className="w-4 h-4" /> Sign In with Bank Account
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -160,7 +193,20 @@ export default function TransferPage() {
           <CardContent className="space-y-5">
             {error && (
               <Alert variant="error" title="Transfer Error">
-                {error}
+                <div className="space-y-2">
+                  <p>{error}</p>
+                  {isSessionExpired && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push("/login")}
+                      className="mt-2 text-xs gap-1.5"
+                    >
+                      <LogIn className="w-3.5 h-3.5" /> Sign In Again
+                    </Button>
+                  )}
+                </div>
               </Alert>
             )}
 

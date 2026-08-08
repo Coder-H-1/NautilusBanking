@@ -52,22 +52,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize session on mount
+  // Initialize and validate session on mount
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("nautilus_token");
-      const storedUser = localStorage.getItem("nautilus_user");
+    const handleExpired = () => {
+      setUser(null);
+      setToken(null);
+    };
+    window.addEventListener("nautilus_session_expired", handleExpired);
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        const parsedUser = JSON.parse(storedUser) as UserAccount;
-        setUser(parsedUser);
+    const initSession = async () => {
+      try {
+        const storedToken = localStorage.getItem("nautilus_token");
+        const storedUser = localStorage.getItem("nautilus_user");
+
+        if (storedToken && storedUser) {
+          // Verify with backend to ensure token is not expired
+          const res = await apiRequest<AuthServerResponse>("/auth/device", {
+            method: "POST",
+            body: JSON.stringify({ token: storedToken }),
+          });
+
+          if (res.data && res.data.success) {
+            setToken(storedToken);
+            const parsedUser = JSON.parse(storedUser) as UserAccount;
+            setUser(parsedUser);
+          } else {
+            // Token is expired or invalid
+            localStorage.removeItem("nautilus_token");
+            localStorage.removeItem("nautilus_user");
+            setToken(null);
+            setUser(null);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore session", e);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (e) {
-      console.error("Failed to restore session", e);
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    initSession();
+
+    return () => {
+      window.removeEventListener("nautilus_session_expired", handleExpired);
+    };
   }, []);
 
   // Refresh current user balance from bank

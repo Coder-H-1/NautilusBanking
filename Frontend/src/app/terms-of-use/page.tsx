@@ -188,7 +188,7 @@ export default function TermsOfUsePage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted text-xs font-mono font-medium transition-colors"
           >
             <Mail className="w-3.5 h-3.5" />
-            <span>nautilus-project-00001@gmail.com</span>
+            <span>nautilus.project.00001@gmail.com</span>
           </a>
         </div>
       </main>
