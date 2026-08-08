@@ -37,6 +37,7 @@ export function Navbar() {
     { label: "Transfer", href: "/transfer", icon: Send },
     { label: "QR Payment", href: "/qr", icon: QrCode },
     { label: "Faucet", href: "/faucet", icon: Coins },
+    { label: "Account", href: "/account", icon: ShieldCheck },
   ];
 
   return (

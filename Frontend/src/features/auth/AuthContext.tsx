@@ -228,6 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         role: "user",
         balance: data.balance ?? 1000,
         bank_name: payload.bank_id,
+        status: data.status || "active",
       };
 
       setUser(newUser);

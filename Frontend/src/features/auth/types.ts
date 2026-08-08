@@ -8,6 +8,8 @@ export interface UserAccount {
   role: string;
   balance: number;
   bank_name: BankName;
+  status?: string;
+  deletion_requested_at?: string;
   created_at?: string;
 }
 
@@ -52,4 +54,7 @@ export interface AuthServerResponse {
   account_holder_name?: string;
   email?: string;
   balance?: number;
+  status?: string;
+  deletion_requested_at?: string;
+  deletion_scheduled_for?: string;
 }

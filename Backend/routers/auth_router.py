@@ -136,12 +136,18 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
         # Check if email is already registered in DB
         existing = (
             supabase.table(table_name)
-            .select("bank_user_id")
+            .select("bank_user_id, status")
             .eq("email", clean_email)
             .limit(1)
             .execute()
         )
         if existing.data and len(existing.data) > 0:
+            ex_status = existing.data[0].get("status", "active")
+            if ex_status == "on-hold":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Your account is on-hold with this bank. Please contact nautilus.project.00001@gmail.com to activate it."
+                )
             raise HTTPException(
                 status_code=400,
                 detail=f"User already exists in {req.bank_id.upper()}. Please login instead."
@@ -150,7 +156,7 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
         # Generate unique 8-digit random user ID
         generated_id = generate_8digit_user_id(supabase, table_name)
 
-        # Insert new account with initial balance ($100) and 8-digit ID
+        # Insert new account with initial balance ($100), active status, and 8-digit ID
         insert_res = (
             supabase.table(table_name)
             .insert({
@@ -159,6 +165,7 @@ async def custom_signup(req: CustomSignupRequest, request: Request):
                 "email": clean_email,
                 "password_hash": pwd_hash,
                 "balance": balance,
+                "status": "active",
             })
             .execute()
         )
@@ -282,6 +289,14 @@ async def custom_login(req: CustomLoginRequest, request: Request):
             detail="You don't have any accounts in this bank. Please choose another."
         )
 
+    # Check on-hold status
+    user_status = user_row.get("status", "active")
+    if user_status == "on-hold":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on-hold with this bank. Please contact nautilus.project.00001@gmail.com to activate it."
+        )
+
     # Validate name
     db_name = user_row.get("account_holder_name", "").strip().lower()
     if db_name and db_name != clean_name:
@@ -317,6 +332,7 @@ async def custom_login(req: CustomLoginRequest, request: Request):
         account_holder_name=clean_name,
         email=clean_email,
         balance=user_row.get("balance", 0),
+        status=user_status,
     )
 
 
@@ -377,6 +393,14 @@ async def verify_otp_endpoint(req: OTPVerifyRequest, request: Request):
             detail="You don't have any accounts in this bank. Please choose another."
         )
 
+    # Check on-hold status
+    user_status = user_row.get("status", "active")
+    if user_status == "on-hold":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is on-hold with this bank. Please contact nautilus.project.00001@gmail.com to activate it."
+        )
+
     bank_user_id = user_row.get("bank_user_id")
     account_name = user_row.get("account_holder_name") or req.account_holder_name or "Account Holder"
     balance = user_row.get("balance", 0)
@@ -399,6 +423,7 @@ async def verify_otp_endpoint(req: OTPVerifyRequest, request: Request):
         account_holder_name=account_name,
         email=clean_email,
         balance=balance,
+        status=user_status,
     )
 
 

@@ -78,6 +78,7 @@ async def get_bank_user_info(
             account_holder_name=user_info.get("account_holder_name"),
             balance=user_info.get("balance"),
             bank_user_id=user_info.get("bank_user_id"),
+            status=user_info.get("status", "active"),
         )
     except Exception as e:
         raise HTTPException(
@@ -135,6 +136,7 @@ async def get_receiver_info(
             account_holder_name=user_info.get("account_holder_name"),
             balance=user_info.get("balance"),
             bank_user_id=user_info.get("bank_user_id"),
+            status=user_info.get("status", "active"),
         )
     except Exception as e:
         raise HTTPException(
@@ -194,12 +196,19 @@ async def bank_user_faucet_request(
         supabase = get_supabase_client()
         table_name = f"{req.bank_id.lower()}_database"
 
-        # Fetch current balance
+        # Fetch current balance and status
         res = supabase.table(table_name).select("*").eq("bank_user_id", req.bank_user_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="User account not found.")
 
-        current_balance = res.data[0]["balance"]
+        user_acc = res.data[0]
+        if user_acc.get("status") == "on-hold":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account is on-hold with this bank. Please contact nautilus.project.00001@gmail.com to activate it."
+            )
+
+        current_balance = user_acc["balance"]
         if current_balance + req.amount > MAX_ACCOUNT_BALANCE:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

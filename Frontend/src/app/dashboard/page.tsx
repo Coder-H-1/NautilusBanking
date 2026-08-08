@@ -13,6 +13,8 @@ import {
   ArrowUpRight,
   Eye,
   EyeOff,
+  ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -32,8 +34,35 @@ export default function DashboardPage() {
     setTimeout(() => setRefreshing(false), 400);
   };
 
+  const isOnHold = user?.status === "on-hold";
+
   return (
     <div className="space-y-8">
+      {/* On-Hold Alert Banner */}
+      {isOnHold && (
+        <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <h4 className="text-xs font-bold font-mono text-amber-900">
+                ACCOUNT IS ON-HOLD (DELETION SCHEDULED)
+              </h4>
+              <p className="text-xs text-amber-800 font-mono">
+                Transfers and faucet requests are disabled. You can cancel deletion under Account Settings.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/account")}
+            className="border-amber-400 bg-white text-amber-900 hover:bg-amber-100 font-mono text-xs shrink-0"
+          >
+            Manage Account
+          </Button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-200">
         <div>
@@ -41,6 +70,11 @@ export default function DashboardPage() {
             <span className="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider">
               {user?.bank_name} BANKING PORTAL
             </span>
+            {isOnHold && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300 uppercase">
+                ON-HOLD
+              </span>
+            )}
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
             Welcome back, {user?.name || "Client"}
@@ -64,6 +98,7 @@ export default function DashboardPage() {
             variant="primary"
             size="sm"
             onClick={() => router.push("/transfer")}
+            disabled={isOnHold}
             className="gap-2"
           >
             <Send className="w-3.5 h-3.5" /> New Transfer
@@ -108,7 +143,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10 text-xs font-mono">
               <div>
                 <span className="text-zinc-400 block text-[10px]">ACCOUNT HOLDER</span>
-                <span className="font-semibold text-white truncate block">{user?.name}</span>
+                <span className="font-semibold text-white uppercase truncate block">{user?.name}</span>
               </div>
               <div>
                 <span className="text-zinc-400 block text-[10px]">BANK USER ID</span>
@@ -121,8 +156,10 @@ export default function DashboardPage() {
         {/* Quick Launch Cards */}
         <div className="flex flex-col gap-3">
           <div
-            onClick={() => router.push("/transfer")}
-            className="p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-card cursor-pointer transition-all flex items-center justify-between group"
+            onClick={() => !isOnHold && router.push("/transfer")}
+            className={`p-4 rounded-lg border border-zinc-200 bg-white transition-all flex items-center justify-between group ${
+              isOnHold ? "opacity-60 cursor-not-allowed" : "hover:border-zinc-300 hover:shadow-card cursor-pointer"
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-md bg-zinc-100 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
@@ -137,8 +174,10 @@ export default function DashboardPage() {
           </div>
 
           <div
-            onClick={() => router.push("/qr")}
-            className="p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-card cursor-pointer transition-all flex items-center justify-between group"
+            onClick={() => !isOnHold && router.push("/qr")}
+            className={`p-4 rounded-lg border border-zinc-200 bg-white transition-all flex items-center justify-between group ${
+              isOnHold ? "opacity-60 cursor-not-allowed" : "hover:border-zinc-300 hover:shadow-card cursor-pointer"
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-md bg-zinc-100 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
@@ -153,8 +192,10 @@ export default function DashboardPage() {
           </div>
 
           <div
-            onClick={() => router.push("/faucet")}
-            className="p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-card cursor-pointer transition-all flex items-center justify-between group"
+            onClick={() => !isOnHold && router.push("/faucet")}
+            className={`p-4 rounded-lg border border-zinc-200 bg-white transition-all flex items-center justify-between group ${
+              isOnHold ? "opacity-60 cursor-not-allowed" : "hover:border-zinc-300 hover:shadow-card cursor-pointer"
+            }`}
           >
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-md bg-zinc-100 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
@@ -163,6 +204,22 @@ export default function DashboardPage() {
               <div>
                 <h4 className="text-xs font-semibold text-zinc-900">Liquidity Faucet</h4>
                 <p className="text-[11px] text-zinc-500">Request funds up to $500 with QR</p>
+              </div>
+            </div>
+            <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors" />
+          </div>
+
+          <div
+            onClick={() => router.push("/account")}
+            className="p-4 rounded-lg border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-card cursor-pointer transition-all flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-md bg-zinc-100 text-zinc-900 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-semibold text-zinc-900">Account & Security</h4>
+                <p className="text-[11px] text-zinc-500">Password, status & deletion lifecycle</p>
               </div>
             </div>
             <ArrowUpRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-900 transition-colors" />

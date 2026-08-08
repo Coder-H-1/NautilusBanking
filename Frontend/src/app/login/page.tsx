@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
 import { OtpModal } from "@/components/auth/OtpModal";
-import { Shield, ArrowRight, Eye, EyeOff, Building2, User, Mail, Lock } from "lucide-react";
+import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal";
+import { Shield, ArrowRight, Eye, EyeOff, Building2, User, Mail, Lock, CheckCircle2 } from "lucide-react";
 import { sanitizeInput } from "@/features/crypto/sanitizer";
 
 export default function LoginPage() {
@@ -19,8 +20,10 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showOtpModal, setShowOtpModal] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   const { login } = useAuth();
   const router = useRouter();
@@ -34,6 +37,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
     const cleanName = sanitizeInput(accountHolderName).trim().toLowerCase();
     const cleanEmail = sanitizeInput(email).trim().toLowerCase();
@@ -95,6 +99,13 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {successMessage && (
+                <div className="p-3.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs font-mono flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>{successMessage}</div>
+                </div>
+              )}
+
               {error && (
                 <Alert variant="error" title="Authentication Error">
                   {error}
@@ -160,12 +171,24 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password with Show/Hide Toggle */}
+              {/* Password with Show/Hide Toggle & Forgot Password Link */}
               <div className="space-y-1.5">
-                <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-primary" />
-                  PASSWORD
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-mono font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-primary" />
+                    PASSWORD
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setShowForgotPasswordModal(true);
+                    }}
+                    className="text-[11px] font-mono text-zinc-500 hover:text-primary transition-colors underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -222,6 +245,19 @@ export default function LoginPage() {
         flowType="login"
         onSuccess={handleOtpSuccess}
         onClose={() => setShowOtpModal(false)}
+      />
+
+      {/* Forgot Password Modal */}
+      <ForgotPasswordModal
+        isOpen={showForgotPasswordModal}
+        initialEmail={email}
+        initialBankId={bankId}
+        onSuccess={(msg) => {
+          setShowForgotPasswordModal(false);
+          setSuccessMessage(msg);
+          setPassword("");
+        }}
+        onClose={() => setShowForgotPasswordModal(false)}
       />
     </div>
   );

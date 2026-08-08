@@ -9,6 +9,8 @@ __pycache__/
 docs/
 *.md
 workflow.txt
+db_manager.* 
+dbmanager.*
 
 # Environment variables & secrets
 .env

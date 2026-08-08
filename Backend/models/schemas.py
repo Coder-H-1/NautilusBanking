@@ -86,6 +86,56 @@ class AuthResponse(BaseModel):
     account_holder_name: Optional[str] = None
     email: Optional[str] = None
     balance: Optional[int] = None
+    status: Optional[str] = "active"
+
+
+class PasswordResetRequest(BaseModel):
+    """Request to initiate password reset via OTP."""
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
+
+    @validator("email")
+    def validate_email(cls, v):
+        email_clean = v.strip().lower()
+        if "@" not in email_clean or "." not in email_clean:
+            raise ValueError("Invalid email format")
+        return email_clean
+
+
+class PasswordResetConfirm(BaseModel):
+    """Request to confirm password reset with OTP code and new password."""
+    email: str = Field(..., description="User email address")
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID: cpb, eb, or sb")
+    otp_code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+    new_password: str = Field(..., min_length=6, description="New user password (minimum 6 characters)")
+
+    @validator("email")
+    def validate_email(cls, v):
+        email_clean = v.strip().lower()
+        if "@" not in email_clean or "." not in email_clean:
+            raise ValueError("Invalid email format")
+        return email_clean
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request to change password for logged-in user."""
+    old_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=6, description="New password (minimum 6 characters)")
+
+
+class AccountDeleteRequest(BaseModel):
+    """Request to mark an account as on-hold for deletion."""
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
+    bank_user_id: int = Field(..., gt=0, description="Bank User ID")
+
+
+class AccountStatusResponse(BaseModel):
+    """Response showing account status and deletion details."""
+    success: bool
+    status: str = "active"
+    deletion_requested_at: Optional[str] = None
+    deletion_scheduled_for: Optional[str] = None
+    message: str
 
 
 # Legacy Auth Schemas for backwards compatibility
@@ -134,6 +184,7 @@ class BankUserResponse(BaseModel):
     email: Optional[str] = None
     balance: Optional[int] = None
     bank_user_id: Optional[int] = None
+    status: Optional[str] = "active"
     message: Optional[str] = None
 
 

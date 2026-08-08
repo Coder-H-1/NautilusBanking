@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS cpb_database (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'on-hold')),
+    deletion_requested_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -32,6 +34,8 @@ CREATE TABLE IF NOT EXISTS eb_database (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'on-hold')),
+    deletion_requested_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -42,6 +46,8 @@ CREATE TABLE IF NOT EXISTS sb_database (
     email TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     balance BIGINT NOT NULL DEFAULT 100 CHECK (balance >= 0 AND balance <= 100000000),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'on-hold')),
+    deletion_requested_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -115,6 +121,8 @@ DECLARE
     v_txn_id UUID;
     v_sender_balance BIGINT;
     v_receiver_balance BIGINT;
+    v_sender_status TEXT;
+    v_receiver_status TEXT;
 BEGIN
     -- Generate transaction ID
     v_txn_id := gen_random_uuid();
@@ -125,15 +133,22 @@ BEGIN
     VALUES (v_txn_id, p_sender_bank, p_sender_user_id,
         p_receiver_bank, p_receiver_user_id, p_amount, 'pending');
 
-    -- Check sender balance (dynamic table, lowercase)
+    -- Check sender balance and status (dynamic table, lowercase)
     EXECUTE format(
-        'SELECT balance FROM %I WHERE bank_user_id = $1 FOR UPDATE',
+        'SELECT balance, status FROM %I WHERE bank_user_id = $1 FOR UPDATE',
         lower(p_sender_bank) || '_database'
-    ) INTO v_sender_balance USING p_sender_user_id;
+    ) INTO v_sender_balance, v_sender_status USING p_sender_user_id;
 
     IF v_sender_balance IS NULL THEN
         UPDATE transactions SET status = 'failed',
             failure_reason = 'Sender account not found'
+            WHERE id = v_txn_id;
+        RETURN v_txn_id;
+    END IF;
+
+    IF v_sender_status = 'on-hold' THEN
+        UPDATE transactions SET status = 'failed',
+            failure_reason = 'Sender account is on-hold'
             WHERE id = v_txn_id;
         RETURN v_txn_id;
     END IF;
@@ -145,15 +160,22 @@ BEGIN
         RETURN v_txn_id;
     END IF;
 
-    -- Check receiver exists and lock row
+    -- Check receiver exists, check status and lock row
     EXECUTE format(
-        'SELECT balance FROM %I WHERE bank_user_id = $1 FOR UPDATE',
+        'SELECT balance, status FROM %I WHERE bank_user_id = $1 FOR UPDATE',
         lower(p_receiver_bank) || '_database'
-    ) INTO v_receiver_balance USING p_receiver_user_id;
+    ) INTO v_receiver_balance, v_receiver_status USING p_receiver_user_id;
 
     IF v_receiver_balance IS NULL THEN
         UPDATE transactions SET status = 'failed',
             failure_reason = 'Receiver account not found'
+            WHERE id = v_txn_id;
+        RETURN v_txn_id;
+    END IF;
+
+    IF v_receiver_status = 'on-hold' THEN
+        UPDATE transactions SET status = 'failed',
+            failure_reason = 'Receiver account is on-hold'
             WHERE id = v_txn_id;
         RETURN v_txn_id;
     END IF;

@@ -73,13 +73,15 @@ class BankFunctions:
 
     def validate_amount(self) -> bool:
         """
-        Validates whether the sender has sufficient balance for the requested transfer.
+        Validates whether the sender has sufficient balance and is active.
         """
         sender_data = self.get_user_data(
             bank_id=self.sender_bank_id,
             bank_user_id=self.sender_bank_user_id,
             account_holder_name=self.sender_account_holder_name,
         )
+        if sender_data.get("status") == "on-hold":
+            raise ValueError("Sender account is on-hold. Transfers are suspended.")
         current_balance = sender_data.get("balance", 0)
         if current_balance < self.amount:
             raise ValueError(
@@ -162,12 +164,19 @@ def execute_bank_transfer_request(
         raise ValueError(f"Sender account not found in {sender_bank_id.upper()}.")
 
     sender_acc = s_res.data[0]
+    if sender_acc.get("status") == "on-hold":
+        raise ValueError("Sender account is on-hold. Transfers are suspended.")
+
     if sender_acc.get("balance", 0) < amount:
         raise ValueError(f"Insufficient funds in sender account ({sender_bank_id.upper()}).")
 
     r_res = supabase.table(receiver_table).select("*").eq("bank_user_id", receiver_bank_user_id).execute()
     if not r_res.data:
         raise ValueError(f"Receiver account not found in {receiver_bank_id.upper()}.")
+
+    receiver_acc = r_res.data[0]
+    if receiver_acc.get("status") == "on-hold":
+        raise ValueError("Receiver account is on-hold. Cannot receive transfers.")
 
     # Atomic execution via Supabase RPC transfer_money
     params = {

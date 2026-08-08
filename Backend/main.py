@@ -20,6 +20,8 @@ from routers.acpi_router import router as acpi_router
 from routers.qr_router import router as qr_router
 from routers.auth_router import router as auth_router
 from routers.email_router import router as email_router
+from routers.account_router import router as account_router
+from middleware.deletion_scheduler import start_deletion_scheduler, stop_deletion_scheduler
 
 # Load env vars
 load_dotenv()
@@ -32,6 +34,16 @@ app = FastAPI(
     redoc_url=None,      # Disable ReDoc in production
     openapi_url=None,    # Disable OpenAPI schema in production
 )
+
+@app.on_event("startup")
+async def on_startup():
+    """Start background scheduler on app launch."""
+    start_deletion_scheduler()
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    """Stop background scheduler on app shutdown."""
+    stop_deletion_scheduler()
 
 # Attach rate limiter
 app.state.limiter = limiter
@@ -144,7 +156,9 @@ async def health_check():
 # Mount Routers
 # ============================================
 app.include_router(auth_router)
+app.include_router(account_router)
 app.include_router(bank_router)
 app.include_router(acpi_router)
 app.include_router(qr_router)
 app.include_router(email_router)
+
