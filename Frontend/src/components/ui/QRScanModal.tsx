@@ -93,7 +93,7 @@ export function QRScanModal({ isOpen, onClose, onScanSuccess }: QRScanModalProps
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Scan QR Code" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Scan QR Code">
       <div className="space-y-6">
         <p className="text-sm text-zinc-500 font-mono">
           Upload a NAUTILUS QR code image to securely load account details.

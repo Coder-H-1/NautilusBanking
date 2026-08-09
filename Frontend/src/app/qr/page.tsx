@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Clock, QrCode, Share2, DollarSign } from "lucide-react";
+import { Clock, QrCode, Share2, DollarSign, Download } from "lucide-react";
 import { generateShareQR, generateTransferQR } from "@/features/bank/api";
 
 type QRMode = "share" | "receive";
@@ -82,6 +82,16 @@ export default function QRPage() {
   const handleGenerateReceive = (e: React.FormEvent) => {
     e.preventDefault();
     loadQRCode();
+  };
+
+  const handleDownload = () => {
+    if (!qrImageSrc) return;
+    const a = document.createElement("a");
+    a.href = qrImageSrc;
+    a.download = `nautilus_qr_${mode}_${user?.id || "account"}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const formatTimer = (seconds: number) => {
@@ -225,17 +235,30 @@ export default function QRPage() {
                 )}
               </div>
 
-              {/* Timer Badge */}
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-zinc-500" />
-                <span className="text-xs text-zinc-500 font-mono">VALIDITY REMAINING:</span>
-                <span
-                  className={`text-sm font-mono font-bold ${
-                    timeLeft < 20 ? "text-red-600 animate-pulse" : "text-zinc-900"
-                  }`}
-                >
-                  {formatTimer(timeLeft)}
-                </span>
+              {/* Timer Badge and Download */}
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-zinc-500" />
+                  <span className="text-xs text-zinc-500 font-mono">VALIDITY REMAINING:</span>
+                  <span
+                    className={`text-sm font-mono font-bold ${
+                      timeLeft < 20 ? "text-red-600 animate-pulse" : "text-zinc-900"
+                    }`}
+                  >
+                    {formatTimer(timeLeft)}
+                  </span>
+                </div>
+                
+                {mode === "share" && qrImageSrc && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDownload}
+                    className="gap-2 text-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download QR
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
