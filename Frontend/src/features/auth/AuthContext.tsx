@@ -269,12 +269,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("nautilus_user");
   };
 
-  const selectBank = (bank: BankName, bankUserId: string = "1") => {
+  const selectBank = (bank: BankName, bankUserId?: string) => {
     if (!user) return;
     const updated: UserAccount = {
       ...user,
       bank_name: bank,
-      id: bankUserId,
+      id: bankUserId || user.id,
     };
     setUser(updated);
     localStorage.setItem("nautilus_user", JSON.stringify(updated));

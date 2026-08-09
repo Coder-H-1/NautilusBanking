@@ -7,15 +7,16 @@ Includes 2-minute expiration TTL and base64 rendering.
 import io
 import time
 import base64
-from typing import Dict, Any, Optional
+import json
+from typing import Dict, Any, Optional, Tuple
 import qrcode
-from encryption.encrypt import encrypt as encrypt_data
+from encryption.encrypt import encrypt as encrypt_data, decrypt as decrypt_data
 
 
 # In-memory store for generated QR tokens with expiration
 QR_STORE: Dict[str, Dict[str, Any]] = {}
 EXPIRATION_SECONDS = 120  # 2 minutes
-
+QR_BASE_URL = "https://nautilusbanking.vercel.app/qr/scan?data="
 
 class QRCodeMaker:
     """Creates and manages timed, encrypted QR codes."""
@@ -31,75 +32,91 @@ class QRCodeMaker:
         for k in expired_keys:
             QR_STORE.pop(k, None)
 
-    def encrypt_payload(self) -> str:
-        """
-        Encrypts the sensitive user data (bank_id, bank_user_id, timestamp)
-        using RSA public key so raw identifiers are never exposed in plaintext.
-        """
-        raw_payload = f"{self.bank_id}:{self.bank_user_id}:{int(time.time())}"
-        return encrypt_data(raw_payload)
-
-    def create(self) -> Dict[str, Any]:
-        """
-        Creates a scannable QR code image (base64 PNG) containing the encrypted payload.
-        Expires in 2 minutes.
-        """
-        self._cleanup_expired()
-
-        encrypted_payload = self.encrypt_payload()
-        expires_at_epoch = time.time() + EXPIRATION_SECONDS
-
-        # Generate QR Code image
+    def _generate_qr_base64(self, payload: str) -> str:
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_M,
             box_size=10,
             border=4,
         )
-        qr.add_data(encrypted_payload)
+        qr.add_data(payload)
         qr.make(fit=True)
 
         img = qr.make_image(fill_color="black", back_color="white")
         buffered = io.BytesIO()
         img.save(buffered, format="PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/png;base64,{img_base64}"
 
-        token_key = f"{self.bank_id}_{self.bank_user_id}"
-        QR_STORE[token_key] = {
-            "payload": encrypted_payload,
-            "expires_at_epoch": expires_at_epoch,
-            "img_base64": img_base64,
+    def create_share_qr(self, account_holder_name: str) -> Dict[str, Any]:
+        """Type 1: Share Account Information"""
+        self._cleanup_expired()
+        
+        payload_dict = {
+            "type": "share",
+            "bank_id": self.bank_id,
+            "bank_user_id": self.bank_user_id,
+            "account_holder_name": account_holder_name,
+            "timestamp": int(time.time())
         }
-
+        raw_payload = json.dumps(payload_dict)
+        encrypted_payload = encrypt_data(raw_payload)
+        full_url = f"{QR_BASE_URL}{encrypted_payload}"
+        
+        expires_at_epoch = time.time() + EXPIRATION_SECONDS
+        img_base64 = self._generate_qr_base64(full_url)
+        
         return {
             "success": True,
-            "qr_image_base64": f"data:image/png;base64,{img_base64}",
+            "qr_image_base64": img_base64,
             "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires_at_epoch)),
         }
 
-    def create_faucet_qr(self, amount: int) -> Dict[str, Any]:
-        """
-        Creates a timed, scannable QR code for a faucet deposit request (max $500).
-        """
+    def create_transfer_qr(self, account_holder_name: str, amount: Optional[int] = None) -> Dict[str, Any]:
+        """Type 2: Transfer (receive) amount"""
+        self._cleanup_expired()
+        
+        payload_dict = {
+            "type": "transfer",
+            "bank_id": self.bank_id,
+            "bank_user_id": self.bank_user_id,
+            "account_holder_name": account_holder_name,
+            "timestamp": int(time.time())
+        }
+        if amount is not None:
+            payload_dict["amount"] = amount
+            
+        raw_payload = json.dumps(payload_dict)
+        encrypted_payload = encrypt_data(raw_payload)
+        full_url = f"{QR_BASE_URL}{encrypted_payload}"
+        
+        expires_at_epoch = time.time() + EXPIRATION_SECONDS
+        img_base64 = self._generate_qr_base64(full_url)
+        
+        return {
+            "success": True,
+            "qr_image_base64": img_base64,
+            "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires_at_epoch)),
+        }
+
+    def create_faucet_qr(self, account_holder_name: str, amount: int) -> Dict[str, Any]:
+        """Type 3: Transfer (send) amount (Faucet page)"""
         self._cleanup_expired()
 
-        raw_payload = f"faucet:{self.bank_id}:{self.bank_user_id}:{amount}:{int(time.time())}"
+        payload_dict = {
+            "type": "faucet",
+            "bank_id": self.bank_id,
+            "bank_user_id": self.bank_user_id,
+            "account_holder_name": account_holder_name,
+            "amount": amount,
+            "timestamp": int(time.time())
+        }
+        raw_payload = json.dumps(payload_dict)
         encrypted_payload = encrypt_data(raw_payload)
+        full_url = f"{QR_BASE_URL}{encrypted_payload}"
+        
         expires_at_epoch = time.time() + EXPIRATION_SECONDS
-
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(encrypted_payload)
-        qr.make(fit=True)
-
-        img = qr.make_image(fill_color="black", back_color="white")
-        buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = self._generate_qr_base64(full_url)
 
         faucet_token = f"faucet_{self.bank_id}_{self.bank_user_id}_{int(time.time())}"
         QR_STORE[faucet_token] = {
@@ -108,7 +125,6 @@ class QRCodeMaker:
             "amount": amount,
             "payload": encrypted_payload,
             "expires_at_epoch": expires_at_epoch,
-            "img_base64": img_base64,
             "claimed": False,
         }
 
@@ -116,12 +132,12 @@ class QRCodeMaker:
             "success": True,
             "token": faucet_token,
             "amount": amount,
-            "qr_image_base64": f"data:image/png;base64,{img_base64}",
+            "qr_image_base64": img_base64,
             "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(expires_at_epoch)),
         }
 
     @staticmethod
-    def claim_faucet_qr(token: str, bank_id: str, bank_user_id: int) -> tuple[bool, int, str]:
+    def claim_faucet_qr(token: str, bank_id: str, bank_user_id: int) -> Tuple[bool, int, str]:
         """
         Validates and marks a faucet QR token as claimed.
         """
@@ -140,16 +156,25 @@ class QRCodeMaker:
         record["claimed"] = True
         amount = record.get("amount", 0)
         return True, amount, "Faucet QR code verified successfully."
-
-    def delete(self) -> bool:
-        """Deletes the active QR code for this user."""
-        token_key = f"{self.bank_id}_{self.bank_user_id}"
-        if token_key in QR_STORE:
-            del QR_STORE[token_key]
-            return True
-        return False
-
-    def update(self) -> Dict[str, Any]:
-        """Replaces existing QR code with a freshly generated one with a new 2-minute TTL."""
-        self.delete()
-        return self.create()
+        
+    @staticmethod
+    def decode_qr(encrypted_payload: str) -> Dict[str, Any]:
+        """Decodes and validates a QR payload."""
+        try:
+            raw_payload = decrypt_data(encrypted_payload)
+            data = json.loads(raw_payload)
+            
+            # Basic validation
+            if "type" not in data or "bank_id" not in data or "bank_user_id" not in data:
+                return {"valid": False, "message": "Invalid QR code format."}
+                
+            # Check expiration (2 minutes = 120 seconds)
+            timestamp = data.get("timestamp", 0)
+            if time.time() - timestamp > EXPIRATION_SECONDS:
+                return {"valid": False, "message": "QR code has expired."}
+                
+            data["valid"] = True
+            return data
+            
+        except Exception as e:
+            return {"valid": False, "message": f"Failed to decode QR code: {str(e)}"}

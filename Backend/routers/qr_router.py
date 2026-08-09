@@ -6,6 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from models.schemas import (
     QRResponse,
     QRGenerateRequest,
+    QRShareGenerateRequest,
+    QRTransferGenerateRequest,
+    QRDecodeRequest,
+    QRDecodeResponse,
     FaucetQRGenerateRequest,
     FaucetQRResponse,
     FaucetClaimRequest,
@@ -18,22 +22,22 @@ from routers.bank_router import check_and_increment_faucet_limit, MAX_ACCOUNT_BA
 router = APIRouter(prefix="/qr", tags=["QR Code"])
 
 
-@router.post("/generate", response_model=QRResponse)
-async def generate_qr_code(
-    req: QRGenerateRequest,
+@router.post("/generate/share", response_model=QRResponse)
+async def generate_share_qr(
+    req: QRShareGenerateRequest,
     auth_data: dict = Depends(verify_common),
 ):
     """
-    Generates a timed (2-minute), encrypted QR code for requesting funds from bank.
+    Generates a timed (2-minute), encrypted Type-1 QR code for sharing account information.
     """
     try:
         maker = QRCodeMaker(bank_id=req.bank_id, bank_user_id=req.bank_user_id)
-        result = maker.create()
+        result = maker.create_share_qr(account_holder_name=req.account_holder_name)
         return QRResponse(
             success=True,
             qr_image_base64=result.get("qr_image_base64"),
             expires_at=result.get("expires_at"),
-            message="QR code created. Valid for 2 minutes.",
+            message="Share QR code created. Valid for 2 minutes.",
         )
     except Exception as e:
         raise HTTPException(
@@ -42,28 +46,55 @@ async def generate_qr_code(
         )
 
 
-@router.post("/update", response_model=QRResponse)
-async def update_qr_code(
-    req: QRGenerateRequest,
+@router.post("/generate/transfer", response_model=QRResponse)
+async def generate_transfer_qr(
+    req: QRTransferGenerateRequest,
     auth_data: dict = Depends(verify_common),
 ):
     """
-    Refreshes QR code for active users after timeout.
+    Generates a timed (2-minute), encrypted Type-2 QR code for receiving funds.
     """
     try:
         maker = QRCodeMaker(bank_id=req.bank_id, bank_user_id=req.bank_user_id)
-        result = maker.update()
+        result = maker.create_transfer_qr(account_holder_name=req.account_holder_name, amount=req.amount)
         return QRResponse(
             success=True,
             qr_image_base64=result.get("qr_image_base64"),
             expires_at=result.get("expires_at"),
-            message="QR code refreshed with new 2-minute validity.",
+            message="Transfer QR code created. Valid for 2 minutes.",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+
+
+@router.post("/decode", response_model=QRDecodeResponse)
+async def decode_qr(
+    req: QRDecodeRequest,
+    auth_data: dict = Depends(verify_common),
+):
+    """
+    Decodes and validates a QR payload.
+    """
+    decoded = QRCodeMaker.decode_qr(req.encrypted_data)
+    if not decoded.get("valid"):
+        return QRDecodeResponse(
+            success=False,
+            valid=False,
+            message=decoded.get("message", "Invalid QR code")
+        )
+        
+    return QRDecodeResponse(
+        success=True,
+        valid=True,
+        type=decoded.get("type"),
+        bank_id=decoded.get("bank_id"),
+        bank_user_id=decoded.get("bank_user_id"),
+        account_holder_name=decoded.get("account_holder_name"),
+        amount=decoded.get("amount")
+    )
 
 
 @router.post("/faucet/generate", response_model=FaucetQRResponse)
@@ -82,7 +113,7 @@ async def generate_faucet_qr(
 
     try:
         maker = QRCodeMaker(bank_id=req.bank_id, bank_user_id=req.bank_user_id)
-        result = maker.create_faucet_qr(amount=req.amount)
+        result = maker.create_faucet_qr(account_holder_name=req.account_holder_name, amount=req.amount)
         return FaucetQRResponse(
             success=True,
             token=result.get("token"),

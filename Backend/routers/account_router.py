@@ -165,9 +165,10 @@ async def change_password_authenticated(
     Authenticated route:
     Allows a currently logged-in user to change their password by supplying the old password.
     """
-    bank_id = auth_data.get("bank_id", "").lower()
-    bank_user_id = auth_data.get("bank_user_id")
-    email = auth_data.get("email")
+    custom_jwt = auth_data.get("custom_jwt", {})
+    bank_id = custom_jwt.get("bank_id", "").lower()
+    bank_user_id = custom_jwt.get("bank_user_id")
+    email = custom_jwt.get("email")
     ip = get_client_ip(request)
 
     if not bank_id or not bank_user_id:
@@ -228,9 +229,10 @@ async def delete_account(
     Authenticated route:
     Marks the user's account as 'on-hold' with a 7-day grace period before permanent deletion.
     """
-    bank_id = auth_data.get("bank_id", "").lower()
-    bank_user_id = auth_data.get("bank_user_id")
-    email = auth_data.get("email")
+    custom_jwt = auth_data.get("custom_jwt", {})
+    bank_id = custom_jwt.get("bank_id", "").lower()
+    bank_user_id = custom_jwt.get("bank_user_id")
+    email = custom_jwt.get("email")
 
     if not bank_id or not bank_user_id:
         raise HTTPException(status_code=401, detail="Invalid session token.")
@@ -286,8 +288,9 @@ async def get_account_status(
     Authenticated route:
     Retrieves current account status and deletion schedule if on-hold.
     """
-    bank_id = auth_data.get("bank_id", "").lower()
-    bank_user_id = auth_data.get("bank_user_id")
+    custom_jwt = auth_data.get("custom_jwt", {})
+    bank_id = custom_jwt.get("bank_id", "").lower()
+    bank_user_id = custom_jwt.get("bank_user_id")
 
     if not bank_id or not bank_user_id:
         raise HTTPException(status_code=401, detail="Invalid session token.")

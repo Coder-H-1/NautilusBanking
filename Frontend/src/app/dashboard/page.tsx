@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/AuthContext";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { QRScanModal } from "@/components/ui/QRScanModal";
+import { QRDecodeResponseData } from "@/features/bank/api";
 import {
   RefreshCw,
   Send,
@@ -23,6 +25,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
   useEffect(() => {
     refreshBalance();
@@ -32,6 +35,20 @@ export default function DashboardPage() {
     setRefreshing(true);
     await refreshBalance();
     setTimeout(() => setRefreshing(false), 400);
+  };
+
+  const handleScanSuccess = (data: QRDecodeResponseData) => {
+    if (data.type === "share" || data.type === "transfer") {
+      const query = new URLSearchParams({
+        bank_id: data.bank_id || "",
+        bank_user_id: data.bank_user_id || "",
+        name: data.account_holder_name || "",
+        amount: data.amount ? data.amount.toString() : "",
+      });
+      router.push(`/transfer?${query.toString()}`);
+    } else {
+      alert("Unsupported QR type scanned.");
+    }
   };
 
   const isOnHold = user?.status === "on-hold";
@@ -93,6 +110,15 @@ export default function DashboardPage() {
             className="gap-2"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Sync Ledger
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsScanModalOpen(true)}
+            disabled={isOnHold}
+            className="gap-2 bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-900"
+          >
+            <QrCode className="w-3.5 h-3.5" /> Scan QR
           </Button>
           <Button
             variant="primary"
@@ -226,6 +252,12 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      
+      <QRScanModal 
+        isOpen={isScanModalOpen} 
+        onClose={() => setIsScanModalOpen(false)} 
+        onScanSuccess={handleScanSuccess} 
+      />
     </div>
   );
 }

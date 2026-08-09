@@ -273,8 +273,21 @@ class ACPITransferResponse(BaseModel):
 # QR Code Schemas
 # ============================================
 
+class QRShareGenerateRequest(BaseModel):
+    """Request to generate a Type-1 (Share Info) QR code."""
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
+    bank_user_id: int = Field(..., gt=0)
+    account_holder_name: str = Field(..., min_length=1)
+
+class QRTransferGenerateRequest(BaseModel):
+    """Request to generate a Type-2 (Transfer/Receive) QR code."""
+    bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
+    bank_user_id: int = Field(..., gt=0)
+    account_holder_name: str = Field(..., min_length=1)
+    amount: Optional[int] = Field(None, gt=0)
+
 class QRGenerateRequest(BaseModel):
-    """Request to generate a QR code."""
+    """Legacy request to generate a QR code."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     bank_user_id: int = Field(..., gt=0)
 
@@ -288,9 +301,10 @@ class QRResponse(BaseModel):
 
 
 class FaucetQRGenerateRequest(BaseModel):
-    """Request to generate a claimable Faucet QR code."""
+    """Request to generate a claimable Faucet QR code (Type-3)."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     bank_user_id: int = Field(..., gt=0)
+    account_holder_name: str = Field(..., min_length=1)
     amount: int = Field(..., gt=0, le=500, description="Amount up to $500")
 
 
@@ -309,6 +323,21 @@ class FaucetClaimRequest(BaseModel):
     token: str = Field(..., min_length=1, description="Faucet QR claim token")
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
     bank_user_id: int = Field(..., gt=0)
+
+class QRDecodeRequest(BaseModel):
+    """Request to decode an encrypted QR payload."""
+    encrypted_data: str = Field(..., description="Encrypted data from QR code")
+
+class QRDecodeResponse(BaseModel):
+    """Response containing decoded QR data."""
+    success: bool
+    type: Optional[str] = None
+    bank_id: Optional[str] = None
+    bank_user_id: Optional[int] = None
+    account_holder_name: Optional[str] = None
+    amount: Optional[int] = None
+    valid: bool
+    message: Optional[str] = None
 
 
 # ============================================
