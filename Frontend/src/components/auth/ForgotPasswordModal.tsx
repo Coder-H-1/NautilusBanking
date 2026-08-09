@@ -71,7 +71,7 @@ export function ForgotPasswordModal({
 
     setLoading(true);
     try {
-      const res = await apiRequest<{ success: boolean; message: string }>("/auth/forgot-password/request", {
+      const res = await apiRequest<{ success: boolean; message: string }>("/account/forgot-password/request", {
         method: "POST",
         body: JSON.stringify({
           email: cleanEmail,
@@ -115,7 +115,7 @@ export function ForgotPasswordModal({
     setLoading(true);
     try {
       const cleanEmail = sanitizeInput(email).trim().toLowerCase();
-      const res = await apiRequest<{ success: boolean; message: string }>("/auth/forgot-password/verify", {
+      const res = await apiRequest<{ success: boolean; message: string }>("/account/forgot-password/confirm", {
         method: "POST",
         body: JSON.stringify({
           email: cleanEmail,
@@ -144,7 +144,7 @@ export function ForgotPasswordModal({
     setError(null);
     try {
       const cleanEmail = sanitizeInput(email).trim().toLowerCase();
-      const res = await apiRequest<{ success: boolean; message: string }>("/auth/forgot-password/request", {
+      const res = await apiRequest<{ success: boolean; message: string }>("/account/forgot-password/request", {
         method: "POST",
         body: JSON.stringify({
           email: cleanEmail,
