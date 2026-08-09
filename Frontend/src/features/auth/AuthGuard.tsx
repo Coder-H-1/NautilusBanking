@@ -15,7 +15,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isLoading) {
       const isPublic = PUBLIC_PATHS.includes(pathname);
       if (!isAuthenticated && !isPublic && pathname !== "/") {
-        router.push("/login");
+        let search = "";
+        if (typeof window !== "undefined") {
+          search = window.location.search;
+        }
+        const redirectUrl = search ? `${pathname}${search}` : pathname;
+        router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
       }
     }
   }, [isAuthenticated, isLoading, pathname, router]);

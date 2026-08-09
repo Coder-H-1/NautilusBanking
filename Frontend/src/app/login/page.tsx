@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
 import { BankName } from "@/features/auth/types";
@@ -13,7 +13,7 @@ import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal";
 import { Shield, ArrowRight, Eye, EyeOff, Building2, User, Mail, Lock, CheckCircle2 } from "lucide-react";
 import { sanitizeInput } from "@/features/crypto/sanitizer";
 
-export default function LoginPage() {
+function LoginContent() {
   const [accountHolderName, setAccountHolderName] = useState("");
   const [email, setEmail] = useState("");
   const [bankId, setBankId] = useState<BankName>("CPB");
@@ -27,6 +27,8 @@ export default function LoginPage() {
 
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Letters and spaces only
@@ -70,7 +72,7 @@ export default function LoginPage() {
       if (res.requires_otp) {
         setShowOtpModal(true);
       } else {
-        router.push("/dashboard");
+        router.push(redirectUrl);
       }
     } else {
       setError(res.error || "Authentication failed. Please check your credentials.");
@@ -79,7 +81,7 @@ export default function LoginPage() {
 
   const handleOtpSuccess = () => {
     setShowOtpModal(false);
-    router.push("/dashboard");
+    router.push(redirectUrl);
   };
 
   return (
@@ -260,5 +262,13 @@ export default function LoginPage() {
         onClose={() => setShowForgotPasswordModal(false)}
       />
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-[50vh]">Loading...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
