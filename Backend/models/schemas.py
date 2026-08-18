@@ -126,7 +126,7 @@ class ChangePasswordRequest(BaseModel):
 class AccountDeleteRequest(BaseModel):
     """Request to mark an account as on-hold for deletion."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
-    bank_user_id: int = Field(..., gt=0, description="Bank User ID")
+    bank_user_id: int = Field(..., gt=0, le=2147483647, description="Bank User ID")
 
 
 class AccountStatusResponse(BaseModel):
@@ -174,7 +174,7 @@ class BankListResponse(BaseModel):
 class BankUserRequest(BaseModel):
     """Request to get user info from a bank."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
-    bank_user_id: int = Field(..., gt=0, description="User ID in the bank")
+    bank_user_id: int = Field(..., gt=0, le=2147483647, description="User ID in the bank")
 
 
 class BankUserResponse(BaseModel):
@@ -191,7 +191,7 @@ class BankUserResponse(BaseModel):
 class BankMoneyRequest(BaseModel):
     """Request from user to bank for money (bank-to-user transfer)."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Bank ID")
-    bank_user_id: int = Field(..., gt=0, description="User ID in the bank")
+    bank_user_id: int = Field(..., gt=0, le=2147483647, description="User ID in the bank")
     amount: int = Field(..., gt=0, description="Amount to request")
 
 
@@ -202,17 +202,17 @@ class BankMoneyRequest(BaseModel):
 class TransferRequest(BaseModel):
     """Request to initiate a money transfer (from PSP via /bank/req/sender)."""
     sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Sender's bank ID")
-    sender_bank_user_id: int = Field(..., gt=0, description="Sender's user ID in bank")
+    sender_bank_user_id: int = Field(..., gt=0, le=2147483647, description="Sender's user ID in bank")
     sender_account_holder_name: str = Field(..., min_length=1, description="Sender's name")
     receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver's bank ID")
-    receiver_bank_user_id: int = Field(..., gt=0, description="Receiver's user ID in bank")
+    receiver_bank_user_id: int = Field(..., gt=0, le=2147483647, description="Receiver's user ID in bank")
     amount: int = Field(..., gt=0, description="Amount to transfer")
 
 
 class ReceiverInfoRequest(BaseModel):
     """Request to get receiver info (from ACPI via /bank/req/receiver)."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver's bank ID")
-    bank_user_id: int = Field(..., gt=0, description="Receiver's user ID")
+    bank_user_id: int = Field(..., gt=0, le=2147483647, description="Receiver's user ID")
 
 
 class TransferResponse(BaseModel):
@@ -231,11 +231,11 @@ class BankTransferRequest(BaseModel):
     """Request payload sent to /bank/request to execute bank-level amount change & transaction recording."""
     sender_name: str = Field(..., min_length=1, description="Sender account holder name")
     sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Sender bank ID")
-    sender_bank_user_id: int = Field(..., gt=0, description="Sender bank user ID")
+    sender_bank_user_id: int = Field(..., gt=0, le=2147483647, description="Sender bank user ID")
     amount: int = Field(..., gt=0, description="Amount to transfer")
     receiver_name: Optional[str] = Field(None, description="Receiver account holder name")
     receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$", description="Receiver bank ID")
-    receiver_bank_user_id: int = Field(..., gt=0, description="Receiver bank user ID")
+    receiver_bank_user_id: int = Field(..., gt=0, le=2147483647, description="Receiver bank user ID")
 
 
 class BankTransferResponse(BaseModel):
@@ -251,9 +251,9 @@ class BankTransferResponse(BaseModel):
 class ACPITransferRequest(BaseModel):
     """Request to ACPI to execute a transfer."""
     sender_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    sender_bank_user_id: int = Field(..., gt=0)
+    sender_bank_user_id: int = Field(..., gt=0, le=2147483647)
     receiver_bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    receiver_bank_user_id: int = Field(..., gt=0)
+    receiver_bank_user_id: int = Field(..., gt=0, le=2147483647)
     amount: int = Field(..., gt=0)
     sender_name: Optional[str] = None
     receiver_name: Optional[str] = None
@@ -276,20 +276,20 @@ class ACPITransferResponse(BaseModel):
 class QRShareGenerateRequest(BaseModel):
     """Request to generate a Type-1 (Share Info) QR code."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    bank_user_id: int = Field(..., gt=0)
+    bank_user_id: int = Field(..., gt=0, le=2147483647)
     account_holder_name: str = Field(..., min_length=1)
 
 class QRTransferGenerateRequest(BaseModel):
     """Request to generate a Type-2 (Transfer/Receive) QR code."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    bank_user_id: int = Field(..., gt=0)
+    bank_user_id: int = Field(..., gt=0, le=2147483647)
     account_holder_name: str = Field(..., min_length=1)
     amount: Optional[int] = Field(None, gt=0)
 
 class QRGenerateRequest(BaseModel):
     """Legacy request to generate a QR code."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    bank_user_id: int = Field(..., gt=0)
+    bank_user_id: int = Field(..., gt=0, le=2147483647)
 
 
 class QRResponse(BaseModel):
@@ -303,7 +303,7 @@ class QRResponse(BaseModel):
 class FaucetQRGenerateRequest(BaseModel):
     """Request to generate a claimable Faucet QR code (Type-3)."""
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    bank_user_id: int = Field(..., gt=0)
+    bank_user_id: int = Field(..., gt=0, le=2147483647)
     account_holder_name: str = Field(..., min_length=1)
     amount: int = Field(..., gt=0, le=500, description="Amount up to $500")
 
@@ -322,7 +322,7 @@ class FaucetClaimRequest(BaseModel):
     """Request to claim funds via scanned Faucet QR token."""
     token: str = Field(..., min_length=1, description="Faucet QR claim token")
     bank_id: str = Field(..., pattern="^(?i)(cpb|eb|sb)$")
-    bank_user_id: int = Field(..., gt=0)
+    bank_user_id: int = Field(..., gt=0, le=2147483647)
 
 class QRDecodeRequest(BaseModel):
     """Request to decode an encrypted QR payload."""

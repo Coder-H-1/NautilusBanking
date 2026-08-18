@@ -46,7 +46,7 @@ export default function QRPage() {
       setExpiresAt(res.data.expires_at);
       setTimeLeft(120); // 2 minutes validity
     } else {
-      setError(res.error || "Failed to generate timed QR code.");
+      setError("QR Generation Failed due to some error, please try again later.");
     }
   };
 
@@ -249,7 +249,7 @@ export default function QRPage() {
                   </span>
                 </div>
                 
-                {mode === "share" && qrImageSrc && (
+                {qrImageSrc && (
                   <Button 
                     variant="outline" 
                     size="sm" 

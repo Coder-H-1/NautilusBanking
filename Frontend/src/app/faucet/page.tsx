@@ -78,6 +78,12 @@ export default function FaucetPage() {
     }
 
     if (mode === "direct") {
+      const idVal = parseInt(targetUserId, 10);
+      if (isNaN(idVal) || idVal < 1 || idVal > 2147483647) {
+        setError("Account ID is out of range. Max limit is 2147483647.");
+        return;
+      }
+
       setIsSubmitting(true);
       const res = await requestFaucetFunds(targetBank, targetUserId, numAmount);
       setIsSubmitting(false);
@@ -90,7 +96,21 @@ export default function FaucetPage() {
           await refreshBalance();
         }
       } else {
-        setError(res.error || "Faucet request failed. Check bank and account ID.");
+        const errMsg = res.error || "";
+        if (
+          errMsg.toLowerCase().includes("not found") ||
+          errMsg.toLowerCase().includes("no account") ||
+          errMsg.toLowerCase().includes("invalid bank_user_id")
+        ) {
+          setError("Account not found. Check bank and account ID.");
+        } else if (
+          errMsg.toLowerCase().includes("on-hold") ||
+          errMsg.toLowerCase().includes("limit")
+        ) {
+          setError(errMsg);
+        } else {
+          setError("Faucet Request Failed due to some error, please try again later.");
+        }
       }
     } else if (mode === "generate") {
       if (!user) {
@@ -107,7 +127,7 @@ export default function FaucetPage() {
         setTimeLeft(120); // 2 mins validity
         setSuccessMsg("Faucet QR generated successfully! Anyone can scan this to claim the funds.");
       } else {
-        setError(res.error || "Failed to generate Faucet QR.");
+        setError("Faucet QR Generation Failed due to some error, please try again later.");
       }
     }
   };
@@ -124,7 +144,15 @@ export default function FaucetPage() {
         );
         await refreshBalance();
       } else {
-        setError(res.error || "Failed to claim Faucet QR. It may be expired or already claimed.");
+        const errMsg = res.error || "";
+        if (
+          errMsg.toLowerCase().includes("expired") ||
+          errMsg.toLowerCase().includes("claimed")
+        ) {
+          setError("Failed to claim Faucet QR. It may be expired or already claimed.");
+        } else {
+          setError("Faucet Claim Failed due to some error, please try again later.");
+        }
       }
     } else if (!user) {
       setError("You must be logged in to claim a Faucet QR.");
@@ -144,6 +172,16 @@ export default function FaucetPage() {
       ? qrBase64
       : `data:image/png;base64,${qrBase64}`
     : "";
+
+  const handleDownload = () => {
+    if (!qrImageSrc) return;
+    const a = document.createElement("a");
+    a.href = qrImageSrc;
+    a.download = `nautilus_faucet_qr_${user?.id || "faucet"}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -240,6 +278,7 @@ export default function FaucetPage() {
                     <input
                       type="number"
                       min="1"
+                      max="2147483647"
                       placeholder="0"
                       value={targetUserId}
                       onChange={(e) => setTargetUserId(e.target.value)}
@@ -312,16 +351,28 @@ export default function FaucetPage() {
                     className="w-56 h-56 rounded-lg"
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-zinc-500" />
-                  <span className="text-xs text-zinc-500 font-mono">EXPIRES IN:</span>
-                  <span
-                    className={`text-sm font-mono font-bold ${
-                      timeLeft < 20 ? "text-red-600 animate-pulse" : "text-zinc-900"
-                    }`}
+                
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-zinc-500" />
+                    <span className="text-xs text-zinc-500 font-mono">EXPIRES IN:</span>
+                    <span
+                      className={`text-sm font-mono font-bold ${
+                        timeLeft < 20 ? "text-red-600 animate-pulse" : "text-zinc-900"
+                      }`}
+                    >
+                      {formatTimer(timeLeft)}
+                    </span>
+                  </div>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDownload}
+                    className="gap-2 text-xs font-mono"
                   >
-                    {formatTimer(timeLeft)}
-                  </span>
+                    <Download className="w-3.5 h-3.5" /> Download QR
+                  </Button>
                 </div>
               </CardContent>
             </Card>

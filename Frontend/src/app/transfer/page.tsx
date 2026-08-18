@@ -80,6 +80,11 @@ function TransferContent() {
       setError("Please enter a beneficiary user ID.");
       return;
     }
+    const idVal = parseInt(receiverUserId, 10);
+    if (isNaN(idVal) || idVal < 1 || idVal > 2147483647) {
+      setError("Beneficiary User ID is out of range. Max limit is 2147483647.");
+      return;
+    }
     setIsVerifying(true);
     setError(null);
     setVerifiedRecipient(null);
@@ -101,7 +106,7 @@ function TransferContent() {
       ) {
         setError("You don't have any accounts in this bank. Please choose another or check the ID.");
       } else {
-        setError(errMsg);
+        setError("Verification Failed due to some error, please try again later.");
       }
     }
   };
@@ -117,6 +122,12 @@ function TransferContent() {
 
     if (!receiverUserId) {
       setError("Please specify a Beneficiary User ID.");
+      return;
+    }
+
+    const idVal = parseInt(receiverUserId, 10);
+    if (isNaN(idVal) || idVal < 1 || idVal > 2147483647) {
+      setError("Beneficiary User ID is out of range. Max limit is 2147483647.");
       return;
     }
 
@@ -165,7 +176,7 @@ function TransferContent() {
       ) {
         setError("You don't have any accounts in this bank.");
       } else {
-        setError(errMsg);
+        setError("Transfer Failed due to some error, please try again later.");
       }
     }
   };
@@ -303,6 +314,7 @@ function TransferContent() {
                       <input
                         type="number"
                         min="1"
+                        max="2147483647"
                         placeholder="0"
                         value={receiverUserId}
                         onChange={(e) => {
