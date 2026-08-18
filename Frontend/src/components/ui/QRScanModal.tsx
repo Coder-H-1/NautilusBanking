@@ -274,7 +274,7 @@ export function QRScanModal({ isOpen, onClose, onScanSuccess }: QRScanModalProps
               <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-zinc-200 flex items-center justify-center shadow-inner">
                 <video
                   ref={videoRef}
-                  className="w-full h-full object-cover transform -scale-x-100"
+                  className="w-full h-full object-cover"
                   playsInline
                   muted
                 />

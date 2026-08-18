@@ -66,22 +66,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedUser = localStorage.getItem("nautilus_user");
 
         if (storedToken && storedUser) {
-          // Verify with backend to ensure token is not expired
-          const res = await apiRequest<AuthServerResponse>("/auth/device", {
-            method: "POST",
-            body: JSON.stringify({ token: storedToken }),
-          });
-
-          if (res.data && res.data.success) {
-            setToken(storedToken);
+          try {
             const parsedUser = JSON.parse(storedUser) as UserAccount;
+            setToken(storedToken);
             setUser(parsedUser);
-          } else {
-            // Token is expired or invalid
-            localStorage.removeItem("nautilus_token");
-            localStorage.removeItem("nautilus_user");
-            setToken(null);
-            setUser(null);
+
+            // Verify with backend to ensure token is valid
+            const res = await apiRequest<AuthServerResponse>("/auth/device", {
+              method: "POST",
+              body: JSON.stringify({ token: storedToken }),
+            });
+
+            // Only clear session if server explicitly rejects with 401 Unauthorized
+            if (res.status === 401) {
+              localStorage.removeItem("nautilus_token");
+              localStorage.removeItem("nautilus_user");
+              setToken(null);
+              setUser(null);
+            }
+          } catch (parseErr) {
+            console.error("Invalid stored session user data", parseErr);
           }
         }
       } catch (e) {
@@ -153,6 +157,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.error || !res.data) {
         return { success: false, error: res.error || "Login request failed" };
       }
+
+      // Hold login details for auto-login / pre-filling
+      localStorage.setItem("nautilus_saved_credentials", JSON.stringify({
+        account_holder_name: cleanName,
+        email: cleanEmail,
+        bank_id: payload.bank_id,
+        password: payload.password || "",
+      }));
 
       return {
         success: true,

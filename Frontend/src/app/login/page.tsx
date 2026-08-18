@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/AuthContext";
@@ -29,6 +29,22 @@ function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || "/dashboard";
+
+  // Auto-fill saved login details from localStorage if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("nautilus_saved_credentials");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.account_holder_name) setAccountHolderName(parsed.account_holder_name);
+        if (parsed.email) setEmail(parsed.email);
+        if (parsed.bank_id) setBankId(parsed.bank_id as BankName);
+        if (parsed.password) setPassword(parsed.password);
+      }
+    } catch (e) {
+      console.warn("Could not load saved login credentials", e);
+    }
+  }, []);
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Letters and spaces only

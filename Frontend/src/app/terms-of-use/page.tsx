@@ -110,7 +110,7 @@ export default function TermsOfUsePage() {
               </Card>
             </div>
             <p className="text-xs font-mono text-muted-foreground">
-              All simulated bank identifiers (Central Peoples Bank, Enterprise Bank, Standard Bank) are fictitious entities designed exclusively for demonstration and distributed systems experimentation.
+              All simulated bank identifiers (Common People&apos;s Bank, Elses Bank, SomeBank) are fictitious entities designed exclusively for demonstration and distributed systems experimentation.
             </p>
           </div>
         </section>

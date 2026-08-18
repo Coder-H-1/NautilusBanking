@@ -1,29 +1,29 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "./AuthContext";
+import NotFound from "@/app/not-found";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/privacy-policy"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/signup",
+  "/privacy-policy",
+  "/terms-of-use",
+];
+
+const VALID_PROTECTED_PATHS = [
+  "/dashboard",
+  "/transfer",
+  "/qr",
+  "/qr/scan",
+  "/account",
+  "/faucet",
+];
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
-  const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-    if (!isLoading) {
-      const isPublic = PUBLIC_PATHS.includes(pathname);
-      if (!isAuthenticated && !isPublic && pathname !== "/") {
-        let search = "";
-        if (typeof window !== "undefined") {
-          search = window.location.search;
-        }
-        const redirectUrl = search ? `${pathname}${search}` : pathname;
-        router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}`);
-      }
-    }
-  }, [isAuthenticated, isLoading, pathname, router]);
 
   if (isLoading) {
     return (
@@ -34,6 +34,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isValidProtected = VALID_PROTECTED_PATHS.includes(pathname);
+
+  // Show 404 Page when unauthenticated user accesses protected/non-public route
+  if (!isAuthenticated && !isPublic) {
+    return <NotFound />;
+  }
+
+  // Show 404 Page when authenticated user accesses invalid non-existent route
+  if (isAuthenticated && !isPublic && !isValidProtected) {
+    return <NotFound />;
   }
 
   return <>{children}</>;
