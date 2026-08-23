@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   },
   description:
     "Enterprise inter-bank payment system with ACPI protocol, RSA-OAEP encryption, HMAC-SHA256 signatures, and timed QR codes.",
+  verification: {
+    google: "Oee97HHtVoA7n5gqLvIXRWq5Nb-KmwyCT72WGTnhBi8",
+  },
   robots: {
     index: true,
     follow: true,
