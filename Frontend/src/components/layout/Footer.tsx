@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Shield, Lock, Server, Scale, Mail, FileText } from "lucide-react";
+import { Shield, Lock, Server, Scale, Mail, FileText, Compass } from "lucide-react";
 
 export function Footer() {
   return (
@@ -35,6 +35,13 @@ export function Footer() {
             >
               <Scale className="w-3.5 h-3.5" />
               <span>Privacy Policy</span>
+            </Link>
+            <Link
+              href="/sitemap"
+              className="flex items-center gap-1.5 text-zinc-900 font-semibold hover:underline"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>Sitemap</span>
             </Link>
           </div>
         </div>
