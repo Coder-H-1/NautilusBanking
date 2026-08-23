@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   "/signup",
   "/privacy-policy",
   "/terms-of-use",
+  "/sitemap",
 ];
 
 const VALID_PROTECTED_PATHS = [
