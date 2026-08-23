@@ -225,12 +225,32 @@ async def bank_user_faucet_request(
             .execute()
         )
 
+        # Record faucet transaction in ledger
+        txn_id = None
+        try:
+            tx_res = supabase.table("transactions").insert({
+                "sender_bank": "SYSTEM",
+                "sender_user_id": 0,
+                "receiver_bank": req.bank_id.lower(),
+                "receiver_user_id": req.bank_user_id,
+                "amount": req.amount,
+                "status": "success"
+            }).execute()
+            if tx_res.data:
+                txn_id = tx_res.data[0].get("id")
+        except Exception as tx_err:
+            print(f"[FAUCET TX ERROR]: Failed to record faucet transaction: {tx_err}")
+
+        msg = f"${req.amount:,} funds successfully credited by bank faucet."
+        if txn_id:
+            msg += f" Transaction ID: {txn_id}"
+
         return BankUserResponse(
             success=True,
             account_holder_name=res.data[0]["account_holder_name"],
             balance=new_balance,
             bank_user_id=req.bank_user_id,
-            message=f"${req.amount:,} funds successfully credited by bank faucet.",
+            message=msg,
         )
     except Exception as e:
         if isinstance(e, HTTPException):

@@ -172,12 +172,32 @@ async def claim_faucet_qr_code(
         # Update balance
         supabase.table(table_name).update({"balance": new_balance}).eq("bank_user_id", req.bank_user_id).execute()
 
+        # Record faucet transaction in ledger
+        txn_id = None
+        try:
+            tx_res = supabase.table("transactions").insert({
+                "sender_bank": "SYSTEM",
+                "sender_user_id": 0,
+                "receiver_bank": req.bank_id.lower(),
+                "receiver_user_id": req.bank_user_id,
+                "amount": amount,
+                "status": "success"
+            }).execute()
+            if tx_res.data:
+                txn_id = tx_res.data[0].get("id")
+        except Exception as tx_err:
+            print(f"[FAUCET QR CLAIM TX ERROR]: Failed to record faucet transaction: {tx_err}")
+
+        msg = f"${amount:,} claimed successfully via QR scan!"
+        if txn_id:
+            msg += f" Transaction ID: {txn_id}"
+
         return BankUserResponse(
             success=True,
             account_holder_name=res.data[0]["account_holder_name"],
             balance=new_balance,
             bank_user_id=req.bank_user_id,
-            message=f"${amount:,} claimed successfully via QR scan!",
+            message=msg,
         )
     except Exception as e:
         if isinstance(e, HTTPException):

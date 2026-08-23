@@ -81,7 +81,11 @@ function TransferContent() {
       return;
     }
     const idVal = parseInt(receiverUserId, 10);
-    if (isNaN(idVal) || idVal < 1 || idVal > 2147483647) {
+    if (receiverUserId === "00000000" || isNaN(idVal) || idVal <= 0) {
+      setError("Invalid account number. Account number must be greater than 0.");
+      return;
+    }
+    if (idVal > 2147483647) {
       setError("Beneficiary User ID is out of range. Max limit is 2147483647.");
       return;
     }
@@ -126,7 +130,11 @@ function TransferContent() {
     }
 
     const idVal = parseInt(receiverUserId, 10);
-    if (isNaN(idVal) || idVal < 1 || idVal > 2147483647) {
+    if (receiverUserId === "00000000" || isNaN(idVal) || idVal <= 0) {
+      setError("Invalid account number. Account number must be greater than 0.");
+      return;
+    }
+    if (idVal > 2147483647) {
       setError("Beneficiary User ID is out of range. Max limit is 2147483647.");
       return;
     }
