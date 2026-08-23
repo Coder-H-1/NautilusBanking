@@ -138,7 +138,7 @@ export function PrivacyPolicyModal({ isOpen, onComplete, onClose }: PrivacyPolic
             <p>
               Direct privacy queries or deletion requests to:
               <br />
-              <strong className="text-foreground">nautilus-project-00001@gmail.com</strong>
+              <strong className="text-foreground">nautilus.project.00001@gmail.com</strong>
             </p>
           </section>
 

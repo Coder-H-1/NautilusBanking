@@ -6,9 +6,32 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 
 export const metadata: Metadata = {
-  title: "NAUTILUS | Secure Inter-Bank Settlement Platform",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://nautilusbanking.vercel.app"),
+  title: {
+    default: "NAUTILUS | Secure Inter-Bank Settlement Platform",
+    template: "%s | NAUTILUS Banking",
+  },
   description:
     "Enterprise inter-bank payment system with ACPI protocol, RSA-OAEP encryption, HMAC-SHA256 signatures, and timed QR codes.",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    title: "NAUTILUS | Secure Inter-Bank Settlement Platform",
+    description:
+      "Enterprise inter-bank payment system with ACPI protocol, RSA-OAEP encryption, HMAC-SHA256 signatures, and timed QR codes.",
+    url: "https://nautilusbanking.vercel.app",
+    siteName: "NAUTILUS Banking",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

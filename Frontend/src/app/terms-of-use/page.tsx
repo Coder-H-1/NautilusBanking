@@ -184,7 +184,7 @@ export default function TermsOfUsePage() {
             <div className="text-xs text-muted-foreground">Direct all compliance and research queries to our maintainer address.</div>
           </div>
           <a
-            href="mailto:nautilus-project-00001@gmail.com"
+            href="mailto:nautilus.project.00001@gmail.com"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted text-xs font-mono font-medium transition-colors"
           >
             <Mail className="w-3.5 h-3.5" />
