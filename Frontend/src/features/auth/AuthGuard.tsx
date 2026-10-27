@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   "/privacy-policy",
   "/terms-of-use",
   "/sitemap",
+  "/sitemap.xml",
+  "/robots.txt",
 ];
 
 const VALID_PROTECTED_PATHS = [
