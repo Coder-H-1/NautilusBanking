@@ -99,44 +99,44 @@ export function PrivacyPolicyModal({ isOpen, onComplete, onClose }: PrivacyPolic
           <section className="space-y-2">
             <div className="flex items-center gap-2 text-foreground font-bold text-sm">
               <Scale className="w-4 h-4 text-primary" />
-              <span>1. Statutory Compliance (Republic of India)</span>
+              <span>1. Statutory & Constitutional Principles</span>
             </div>
             <p>
-              This system operates in strict accordance with the Constitutional Right to Privacy under Article 21 (<em>Puttaswamy</em>, 2017), the Information Technology Act, 2000 (Section 43A), the SPDI Rules, 2011, and the Digital Personal Data Protection Act, 2023 (DPDP Act).
+              Operates in alignment with constitutional privacy principles under Article 21 (<em>Puttaswamy</em>, 2017), the IT Act 2000 / SPDI Rules 2011, and core DPDP Act principles (purpose limitation, data minimization, consent, and user withdrawal).
             </p>
           </section>
 
           <section className="space-y-2">
             <div className="flex items-center gap-2 text-foreground font-bold text-sm">
               <Lock className="w-4 h-4 text-primary" />
-              <span>2. Cryptographic Security & Zero-Sale Policy</span>
+              <span>2. Cryptographic Security & Zero-Monetization</span>
             </div>
             <p>
-              All payload communications utilize client-side RSA-OAEP 2048-bit encryption, HMAC-SHA256 digital signatures, and TLS 1.3 transport security. Database stores are encrypted at rest with AES-256 standards.
+              Client-side RSA-OAEP 2048-bit encryption protects sensitive transaction payloads in transit to the server. Clearance messages use HMAC-SHA256 integrity verification, HTTPS/TLS encryption in transit, and database isolation.
             </p>
             <p className="text-foreground font-semibold">
-              We NEVER sell, trade, rent, or distribute personal or authentication data to any third-party advertisement networks or brokers.
+              We NEVER sell, trade, rent, or distribute personal data or credentials to third-party ad networks or brokers.
             </p>
           </section>
 
           <section className="space-y-2">
             <div className="text-foreground font-bold text-sm">
-              3. Data Fields Collected
+              3. Data Fields & Cloud Infrastructure
             </div>
             <ul className="list-disc pl-5 space-y-1">
-              <li>Account Holder Full Name (Case-insensitive)</li>
-              <li>Registered Email Address (Used for OTP dispatch)</li>
-              <li>Bank Affiliation (CPB, EB, or SB)</li>
+              <li>Account Holder Name & Registered Email</li>
+              <li>Bank Partition (CPB, EB, or SB)</li>
               <li>Cryptographically Salted & Hashed Passwords</li>
+              <li>Infrastructure: Vercel (Frontend), Render (API), Supabase (PostgreSQL), Brevo (OTP)</li>
             </ul>
           </section>
 
           <section className="space-y-2">
             <div className="text-foreground font-bold text-sm">
-              4. Grievance Officer Contact
+              4. User Rights & Grievance Desk
             </div>
             <p>
-              Direct privacy queries or deletion requests to:
+              You have the right to access, correct, or request complete account erasure (processed within 7 business days). Submit requests to:
               <br />
               <strong className="text-foreground">nautilus.project.00001@gmail.com</strong>
             </p>
